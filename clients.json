@@ -1,0 +1,10 @@
+{
+  "clients": [
+    { "id": "c1", "name": "Johnson Residence", "price": 45 },
+    { "id": "c2", "name": "Maple Street Apartments", "price": 120 },
+    { "id": "c3", "name": "Garcia Family", "price": 50 },
+    { "id": "c4", "name": "Oakwood HOA", "price": 200 },
+    { "id": "c5", "name": "Smith Backyard", "price": 35 },
+    { "id": "c6", "name": "Riverside Church", "price": 90 }
+  ]
+}
