@@ -7,16 +7,16 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌿</text></svg>">
 <style>
   :root{
-    --green-950:#06150c;
-    --green-900:#0a2615;
-    --green-800:#0f3a20;
-    --green-700:#15512c;
-    --green-600:#1d6e3a;
-    --green-500:#268f4b;
-    --gold-500:#e8b923;
-    --gold-400:#f3cb45;
-    --gold-300:#f8dd7c;
-    --cream:#fbf8ee;
+    --green-950:#0a1518;
+    --green-900:#11242a;
+    --green-800:#17363f;
+    --green-700:#204b57;
+    --green-600:#2c6373;
+    --green-500:#3a7e91;
+    --gold-500:#7e98ab;
+    --gold-400:#96aebf;
+    --gold-300:#b9cad6;
+    --cream:#f5f7f8;
     --danger:#e2554a;
     --radius:18px;
     --shadow-lg: 0 20px 50px -12px rgba(0,0,0,.45);
@@ -27,9 +27,9 @@
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:
-      radial-gradient(circle at 15% 0%, rgba(232,185,35,.10), transparent 45%),
-      radial-gradient(circle at 100% 30%, rgba(38,143,75,.18), transparent 50%),
-      linear-gradient(160deg,var(--green-950),var(--green-900) 55%,#081d10 100%);
+      radial-gradient(circle at 15% 0%, rgba(126,152,171,.10), transparent 45%),
+      radial-gradient(circle at 100% 30%, rgba(58,126,145,.18), transparent 50%),
+      linear-gradient(160deg,var(--green-950),var(--green-900) 55%,#081316 100%);
     color:var(--cream);
     min-height:100vh;
     -webkit-font-smoothing:antialiased;
@@ -40,10 +40,10 @@
   body::before{
     content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
     background:
-      radial-gradient(ellipse 60% 40% at 10% 8%, rgba(232,185,35,.16), transparent 60%),
-      radial-gradient(ellipse 55% 45% at 95% 18%, rgba(38,143,75,.28), transparent 60%),
-      radial-gradient(ellipse 50% 50% at 25% 95%, rgba(29,110,58,.30), transparent 60%),
-      radial-gradient(ellipse 45% 40% at 105% 85%, rgba(232,185,35,.10), transparent 60%);
+      radial-gradient(ellipse 60% 40% at 10% 8%, rgba(126,152,171,.16), transparent 60%),
+      radial-gradient(ellipse 55% 45% at 95% 18%, rgba(58,126,145,.28), transparent 60%),
+      radial-gradient(ellipse 50% 50% at 25% 95%, rgba(44,99,115,.30), transparent 60%),
+      radial-gradient(ellipse 45% 40% at 105% 85%, rgba(126,152,171,.10), transparent 60%);
     background-size:200% 200%;
     animation:meshDrift 26s ease-in-out infinite alternate;
   }
@@ -73,7 +73,7 @@
   .brand .sub{font-size:11px;color:var(--gold-300);font-weight:600;letter-spacing:.5px;text-transform:uppercase;opacity:.85;}
 
   .lock-btn{
-    border:1px solid rgba(232,185,35,.35);
+    border:1px solid rgba(126,152,171,.35);
     background:rgba(255,255,255,.04);
     color:var(--gold-300);
     border-radius:999px;
@@ -87,7 +87,7 @@
   .lock-btn:active{transform:scale(.94);}
   .lock-btn.unlocked{
     background:linear-gradient(135deg,var(--gold-400),var(--gold-500));
-    color:#1c1300; border-color:transparent;
+    color:#122029; border-color:transparent;
   }
 
   /* Earnings card */
@@ -102,7 +102,7 @@
   }
   .earnings-card::before{
     content:"";position:absolute;inset:-40% -10% auto auto;width:220px;height:220px;
-    background:radial-gradient(circle, rgba(232,185,35,.22), transparent 70%);
+    background:radial-gradient(circle, rgba(126,152,171,.22), transparent 70%);
     pointer-events:none;
   }
   .earnings-label{
@@ -151,12 +151,12 @@
   }
   .day-header .day-total{
     margin-left:auto;font-size:13px;font-weight:800;
-    color:var(--cream);background:rgba(232,185,35,.12);
+    color:var(--cream);background:rgba(126,152,171,.12);
     padding:3px 10px;border-radius:999px;
   }
   .day-header.unscheduled .day-weekday{color:rgba(251,248,238,.4);}
   .day-group{
-    border-left:2px solid rgba(232,185,35,.18);
+    border-left:2px solid rgba(126,152,171,.18);
     padding-left:10px;margin-left:2px;
   }
   .client-card{
@@ -171,7 +171,7 @@
     transition:background .2s ease, transform .15s ease, box-shadow .2s ease, border-color .2s ease;
   }
   .client-card:active{transform:scale(.985);box-shadow:0 1px 4px rgba(0,0,0,.1);}
-  .info.tappable:hover, .client-card:has(.tappable):hover{border-color:rgba(232,185,35,.25);}
+  .info.tappable:hover, .client-card:has(.tappable):hover{border-color:rgba(126,152,171,.25);}
   .client-card .info{display:flex;flex-direction:column;gap:2px;min-width:0;}
   .client-card .name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .client-card .price{font-size:13px;color:var(--gold-300);font-weight:700;}
@@ -184,10 +184,10 @@
     transition:transform .15s ease, opacity .2s ease;
   }
   .icon-btn:active{transform:scale(.88);}
-  .icon-btn.add{background:linear-gradient(135deg,var(--gold-400),var(--gold-500));color:#1c1300;}
+  .icon-btn.add{background:linear-gradient(135deg,var(--gold-400),var(--gold-500));color:#122029;}
   .icon-btn.remove{background:rgba(226,85,74,.16);color:var(--danger);}
   .icon-btn.delete{background:rgba(226,85,74,.12);color:var(--danger);font-size:13px;}
-  .icon-btn.order{background:rgba(232,185,35,.12);color:var(--gold-300);font-size:12px;width:30px;height:30px;}
+  .icon-btn.order{background:rgba(126,152,171,.12);color:var(--gold-300);font-size:12px;width:30px;height:30px;}
   .icon-btn.complete{background:rgba(38,143,75,.25);color:#5fd98b;font-size:16px;}
   .paid-toggle{
     border:none;border-radius:999px;font-size:11px;font-weight:800;
@@ -205,17 +205,17 @@
     flex-shrink:0;user-select:none;
   }
   .sortable-ghost{opacity:.35;}
-  .sortable-chosen{background:rgba(232,185,35,.1) !important;border-color:rgba(232,185,35,.4) !important;}
+  .sortable-chosen{background:rgba(126,152,171,.1) !important;border-color:rgba(126,152,171,.4) !important;}
   .icon-btn[disabled]{opacity:.25;pointer-events:none;}
 
   /* Roster card variant (in weekend already) */
-  .client-card.in-weekend{border-color:rgba(232,185,35,.4);background:rgba(232,185,35,.06);}
+  .client-card.in-weekend{border-color:rgba(126,152,171,.4);background:rgba(126,152,171,.06);}
   .tappable{cursor:pointer;}
   .info.tappable{flex:1;}
   .tap-hint{font-size:11px;color:rgba(251,248,238,.4);font-weight:600;white-space:nowrap;}
   .badge{
     font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
-    background:rgba(232,185,35,.18);color:var(--gold-300);
+    background:rgba(126,152,171,.18);color:var(--gold-300);
     padding:3px 7px;border-radius:999px;margin-left:6px;
   }
 
@@ -239,14 +239,14 @@
   .add-form input:focus{border-color:var(--gold-400);}
   .add-form button{
     background:linear-gradient(135deg,var(--gold-400),var(--gold-500));
-    border:none;color:#1c1300;font-weight:800;border-radius:10px;
+    border:none;color:#122029;font-weight:800;border-radius:10px;
     padding:0 16px;font-size:14px;cursor:pointer;
   }
 
   .fab-row{display:flex;gap:10px;margin-bottom:14px;}
   .pill-btn{
     flex:1;
-    border:1px solid rgba(232,185,35,.3);
+    border:1px solid rgba(126,152,171,.3);
     background:rgba(255,255,255,.04);
     color:var(--gold-300);font-weight:700;font-size:13px;
     border-radius:14px;padding:11px;cursor:pointer;
@@ -256,7 +256,7 @@
   .pill-btn:active{transform:scale(.96);}
   .pill-btn.primary{
     background:linear-gradient(135deg,var(--gold-400),var(--gold-500));
-    color:#1c1300;border-color:transparent;
+    color:#122029;border-color:transparent;
   }
 
   footer{
@@ -275,7 +275,7 @@
   .overlay.show{display:flex;}
   .modal{
     background:linear-gradient(160deg,var(--green-800),var(--green-900));
-    border:1px solid rgba(232,185,35,.25);
+    border:1px solid rgba(126,152,171,.25);
     border-radius:20px;padding:26px 22px;width:100%;max-width:320px;
     box-shadow:var(--shadow-lg);
     animation:popIn .3s cubic-bezier(.2,.9,.25,1.2) both;
@@ -285,8 +285,8 @@
   .modal p{margin:0 0 16px;font-size:13px;color:rgba(251,248,238,.6);}
   .pin-modal{
     padding-top:32px;
-    box-shadow:var(--shadow-lg), 0 0 60px -10px rgba(232,185,35,.18);
-    border-color:rgba(232,185,35,.3);
+    box-shadow:var(--shadow-lg), 0 0 60px -10px rgba(126,152,171,.18);
+    border-color:rgba(126,152,171,.3);
   }
   .pin-modal-logo{
     width:64px;height:64px;object-fit:contain;margin:0 auto 16px;display:block;
@@ -296,7 +296,7 @@
   .pin-dots{display:flex;gap:12px;justify-content:center;margin:18px 0;}
   .pin-dot{
     width:16px;height:16px;border-radius:50%;
-    border:2px solid rgba(232,185,35,.4);
+    border:2px solid rgba(126,152,171,.4);
     transition:background .15s ease, transform .15s ease;
   }
   .pin-dot.filled{background:var(--gold-400);border-color:var(--gold-400);transform:scale(1.1);}
@@ -313,8 +313,8 @@
   }
   .keypad button:active{
     transform:scale(.9);
-    background:linear-gradient(160deg, rgba(232,185,35,.35), rgba(232,185,35,.15));
-    border-color:rgba(232,185,35,.5);
+    background:linear-gradient(160deg, rgba(126,152,171,.35), rgba(126,152,171,.15));
+    border-color:rgba(126,152,171,.5);
   }
   .keypad button.wide{grid-column:span 1;font-size:13px;color:var(--gold-300);}
   .modal-close{
@@ -332,7 +332,7 @@
     cursor:pointer;display:flex;align-items:center;justify-content:center;
     transition:background .15s ease, transform .1s ease;
   }
-  .cal-nav-btn:active{transform:scale(.9);background:rgba(232,185,35,.2);}
+  .cal-nav-btn:active{transform:scale(.9);background:rgba(126,152,171,.2);}
   .cal-month-label{font-weight:800;font-size:15px;letter-spacing:.3px;}
   .cal-weekdays{
     display:grid;grid-template-columns:repeat(7,1fr);
@@ -349,14 +349,14 @@
   }
   .cal-day:active{transform:scale(.9);}
   .cal-day.empty{visibility:hidden;cursor:default;}
-  .cal-day.today{border:1.5px solid rgba(232,185,35,.5);}
-  .cal-day.selected{background:linear-gradient(135deg,var(--gold-400),var(--gold-500));color:#1c1300;font-weight:800;}
+  .cal-day.today{border:1.5px solid rgba(126,152,171,.5);}
+  .cal-day.selected{background:linear-gradient(135deg,var(--gold-400),var(--gold-500));color:#122029;font-weight:800;}
   .cal-day.past{opacity:.3;}
   .cal-day .dot{
     position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;
     background:var(--gold-400);
   }
-  .cal-day.selected .dot{background:#1c1300;}
+  .cal-day.selected .dot{background:#122029;}
   .cal-actions{margin:16px 0 0;}
   .cal-actions .pill-btn{
     width:100%;border-color:rgba(226,85,74,.3);color:var(--danger);
@@ -370,7 +370,7 @@
   }
   .tabs.tabs-secondary{margin-bottom:18px;}
   .message-preview{
-    background:rgba(232,185,35,.08);border:1px solid rgba(232,185,35,.25);
+    background:rgba(126,152,171,.08);border:1px solid rgba(126,152,171,.25);
     border-radius:14px;padding:14px 16px;font-size:13px;font-style:italic;
     color:var(--gold-300);line-height:1.5;
   }
@@ -382,10 +382,10 @@
   .tab-btn:active{transform:scale(.96);}
   .tab-btn.active{
     background:linear-gradient(135deg,var(--gold-400),var(--gold-500));
-    color:#1c1300;
-    box-shadow:0 4px 14px -2px rgba(232,185,35,.45), inset 0 1px 0 rgba(255,255,255,.3);
+    color:#122029;
+    box-shadow:0 4px 14px -2px rgba(126,152,171,.45), inset 0 1px 0 rgba(255,255,255,.3);
   }
-  .revenue-card{background:linear-gradient(135deg,var(--green-800),var(--green-900) 60%,#06170d);}
+  .revenue-card{background:linear-gradient(135deg,var(--green-800),var(--green-900) 60%,#071217);}
   .completed-row{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
@@ -438,7 +438,7 @@
   .profile-invoice-row .pi-amount{font-weight:800;color:var(--gold-300);}
   .invoice-modal{max-width:420px;}
   .invoice-paper{
-    background:#fff;color:#1c1300;border-radius:14px;padding:24px 20px;
+    background:#fff;color:#122029;border-radius:14px;padding:24px 20px;
     text-align:left;
   }
   .invoice-paper .inv-logo{display:block;width:64px;margin:0 auto 10px;}
@@ -475,7 +475,7 @@
     background:var(--green-700);color:var(--cream);
     padding:11px 20px;border-radius:999px;font-size:13px;font-weight:600;
     box-shadow:var(--shadow-sm);opacity:0;transition:all .3s ease;
-    z-index:60;border:1px solid rgba(232,185,35,.3);
+    z-index:60;border:1px solid rgba(126,152,171,.3);
     pointer-events:none;
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -954,7 +954,7 @@ function renderMessages(){
     tlist.innerHTML = `<div class="empty-state">No saved messages yet.${unlocked ? '<br>Tap "+ New Message" to create one.' : ''}</div>`;
   } else {
     tlist.innerHTML = messageTemplates.map(m => `
-      <div class="completed-row" style="cursor:pointer;${selectedMessageId === m.id ? 'border-color:rgba(232,185,35,.5);background:rgba(232,185,35,.08);' : ''}" onclick="selectMessageTemplate('${m.id}')">
+      <div class="completed-row" style="cursor:pointer;${selectedMessageId === m.id ? 'border-color:rgba(126,152,171,.5);background:rgba(126,152,171,.08);' : ''}" onclick="selectMessageTemplate('${m.id}')">
         <div class="info">
           <div class="name">${escapeHtml(m.label)}</div>
           <div class="meta">${escapeHtml(m.text)}</div>
