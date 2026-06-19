@@ -248,6 +248,47 @@
     font-size:13px;cursor:pointer;text-decoration:underline;
   }
 
+  .cal-modal{max-width:340px;text-align:left;}
+  .cal-modal h3{text-align:center;font-size:18px;}
+  .cal-modal #calClientPrice{text-align:center;margin-bottom:14px;color:var(--gold-300);font-weight:700;}
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .cal-nav-btn{
+    width:34px;height:34px;border-radius:10px;border:none;
+    background:rgba(255,255,255,.06);color:var(--cream);font-size:18px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:background .15s ease, transform .1s ease;
+  }
+  .cal-nav-btn:active{transform:scale(.9);background:rgba(232,185,35,.2);}
+  .cal-month-label{font-weight:800;font-size:15px;letter-spacing:.3px;}
+  .cal-weekdays{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    text-align:center;font-size:11px;color:rgba(251,248,238,.4);
+    font-weight:700;margin-bottom:6px;
+  }
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-day{
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;
+    background:rgba(255,255,255,.03);color:var(--cream);
+    transition:background .15s ease, transform .1s ease;
+    position:relative;
+  }
+  .cal-day:active{transform:scale(.9);}
+  .cal-day.empty{visibility:hidden;cursor:default;}
+  .cal-day.today{border:1.5px solid rgba(232,185,35,.5);}
+  .cal-day.selected{background:linear-gradient(135deg,var(--gold-400),var(--gold-500));color:#1c1300;font-weight:800;}
+  .cal-day.past{opacity:.3;}
+  .cal-day .dot{
+    position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;
+    background:var(--gold-400);
+  }
+  .cal-day.selected .dot{background:#1c1300;}
+  .cal-actions{margin:16px 0 0;}
+  .cal-actions .pill-btn{
+    width:100%;border-color:rgba(226,85,74,.3);color:var(--danger);
+    background:rgba(226,85,74,.08);
+  }
+
   .toast{
     position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
     background:var(--green-700);color:var(--cream);
@@ -329,22 +370,47 @@
   </div>
 </div>
 
+<div class="overlay" id="calOverlay">
+  <div class="modal cal-modal">
+    <h3 id="calClientName">Schedule</h3>
+    <p id="calClientPrice"></p>
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calChangeMonth(-1)">‹</button>
+      <div class="cal-month-label" id="calMonthLabel">June 2026</div>
+      <button class="cal-nav-btn" onclick="calChangeMonth(1)">›</button>
+    </div>
+    <div class="cal-weekdays">
+      <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-actions">
+      <button class="pill-btn" onclick="clearCalendarDate()">Remove from schedule</button>
+    </div>
+    <button class="modal-close" onclick="closeCalendar()">Close</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 const STORAGE_KEY = 'ma_mowing_clients_v4';
 const WEEKEND_KEY = 'ma_mowing_weekend_v4';
+const DATES_KEY = 'ma_mowing_dates_v1';
 const PIN_KEY = 'ma_mowing_pin_v1';
 const UNLOCK_KEY = 'ma_mowing_unlocked_session';
 const DEFAULT_PIN = '5070';
 
 let clients = [];
 let weekendIds = [];
+let weekendDates = {}; // { clientId: 'YYYY-MM-DD' }
 let unlocked = false;
 let pinEntry = '';
 let pinMode = 'unlock'; // 'unlock' | 'setup' | 'confirm'
 let pendingNewPin = '';
+let calClientId = null;
+let calViewYear = 2026;
+let calViewMonth = 5; // June (0-indexed)
 
 async function init(){
   const savedClients = localStorage.getItem(STORAGE_KEY);
@@ -362,6 +428,9 @@ async function init(){
   const savedWeekend = localStorage.getItem(WEEKEND_KEY);
   weekendIds = savedWeekend ? JSON.parse(savedWeekend) : [];
 
+  const savedDates = localStorage.getItem(DATES_KEY);
+  weekendDates = savedDates ? JSON.parse(savedDates) : {};
+
   unlocked = sessionStorage.getItem(UNLOCK_KEY) === 'true';
   updateLockUI();
   render();
@@ -369,6 +438,7 @@ async function init(){
 
 function saveClients(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(clients)); }
 function saveWeekend(){ localStorage.setItem(WEEKEND_KEY, JSON.stringify(weekendIds)); }
+function saveDates(){ localStorage.setItem(DATES_KEY, JSON.stringify(weekendDates)); }
 function getPin(){ return localStorage.getItem(PIN_KEY) || DEFAULT_PIN; }
 
 function render(){
@@ -394,22 +464,28 @@ function renderTotals(){
 
 function renderWeekend(){
   const list = document.getElementById('weekendList');
-  const weekendClients = weekendIds.map(id => clients.find(c => c.id === id)).filter(Boolean);
+  let weekendClients = weekendIds.map(id => clients.find(c => c.id === id)).filter(Boolean);
+  weekendClients.sort((a,b) => {
+    const da = weekendDates[a.id] || '9999-99-99';
+    const db = weekendDates[b.id] || '9999-99-99';
+    return da.localeCompare(db);
+  });
   if(weekendClients.length === 0){
-    list.innerHTML = `<div class="empty-state">No clients added yet.<br>${unlocked ? 'Add some from the roster below 👇' : 'Check back after the boss sets the schedule.'}</div>`;
+    list.innerHTML = `<div class="empty-state">No clients added yet.<br>${unlocked ? 'Tap a client below to schedule them 👇' : 'Check back after the boss sets the schedule.'}</div>`;
     return;
   }
   list.innerHTML = weekendClients.map((c,i) => `
     <div class="client-card" data-id="${c.id}">
       ${unlocked ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
-      <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="removeFromWeekend('${c.id}')"` : ''}>
+      <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="openCalendar('${c.id}')"` : ''}>
         <div class="name">${escapeHtml(c.name)}</div>
-        <div class="price">$${Number(c.price).toLocaleString()}</div>
+        <div class="price">$${Number(c.price).toLocaleString()} ${weekendDates[c.id] ? '· ' + formatDateShort(weekendDates[c.id]) : ''}</div>
       </div>
       <div class="actions">
         ${unlocked ? `
           <button class="icon-btn order" onclick="moveWeekendItem('${c.id}', -1)" ${i===0 ? 'disabled' : ''} title="Move up">▲</button>
           <button class="icon-btn order" onclick="moveWeekendItem('${c.id}', 1)" ${i===weekendClients.length-1 ? 'disabled' : ''} title="Move down">▼</button>
+          <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
         ` : ''}
       </div>
     </div>
@@ -442,10 +518,11 @@ function renderRoster(){
   }
   list.innerHTML = clients.map(c => {
     const inWeekend = weekendIds.includes(c.id);
+    const dateLabel = inWeekend && weekendDates[c.id] ? formatDateShort(weekendDates[c.id]) : (inWeekend ? 'scheduled' : '');
     return `
     <div class="client-card ${inWeekend ? 'in-weekend' : ''}">
-      <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="toggleWeekend('${c.id}')"` : ''}>
-        <div class="name">${escapeHtml(c.name)} ${inWeekend ? '<span class="badge">scheduled</span>' : ''}</div>
+      <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="openCalendar('${c.id}')"` : ''}>
+        <div class="name">${escapeHtml(c.name)} ${inWeekend ? `<span class="badge">${dateLabel}</span>` : ''}</div>
         <div class="price">$${Number(c.price).toLocaleString()}</div>
       </div>
       <div class="actions">
@@ -461,9 +538,90 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
-function toggleWeekend(id){
-  if(weekendIds.includes(id)) removeFromWeekend(id);
-  else addToWeekend(id);
+function formatDateShort(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return dt.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+}
+
+function openCalendar(id){
+  if(!unlocked) return;
+  calClientId = id;
+  const existing = weekendDates[id];
+  if(existing){
+    const [y,m] = existing.split('-').map(Number);
+    calViewYear = y; calViewMonth = m - 1;
+  } else {
+    calViewYear = 2026; calViewMonth = 5;
+  }
+  const c = clients.find(cl => cl.id === id);
+  document.getElementById('calClientName').textContent = c.name;
+  document.getElementById('calClientPrice').textContent = '$' + Number(c.price).toLocaleString();
+  renderCalGrid();
+  document.getElementById('calOverlay').classList.add('show');
+}
+
+function closeCalendar(){
+  document.getElementById('calOverlay').classList.remove('show');
+  calClientId = null;
+}
+
+function calChangeMonth(delta){
+  calViewMonth += delta;
+  if(calViewMonth < 0){ calViewMonth = 11; calViewYear--; }
+  if(calViewMonth > 11){ calViewMonth = 0; calViewYear++; }
+  renderCalGrid();
+}
+
+function renderCalGrid(){
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calMonthLabel').textContent = monthNames[calViewMonth] + ' ' + calViewYear;
+
+  const grid = document.getElementById('calGrid');
+  const firstDay = new Date(calViewYear, calViewMonth, 1).getDay();
+  const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+  const todayStr = new Date().toISOString().slice(0,10);
+  const selectedDate = calClientId ? weekendDates[calClientId] : null;
+
+  // which clients are scheduled on which day this month (for dot indicators)
+  const datesThisMonth = {};
+  Object.entries(weekendDates).forEach(([cid, dateStr]) => {
+    const [y,m,d] = dateStr.split('-').map(Number);
+    if(y === calViewYear && m - 1 === calViewMonth) datesThisMonth[d] = true;
+  });
+
+  let html = '';
+  for(let i=0;i<firstDay;i++) html += `<div class="cal-day empty"></div>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = `${calViewYear}-${String(calViewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr === todayStr;
+    const isSelected = dateStr === selectedDate;
+    const hasDot = datesThisMonth[d] && !isSelected;
+    html += `<div class="cal-day ${isToday?'today':''} ${isSelected?'selected':''}" onclick="selectCalendarDate('${dateStr}')">${d}${hasDot ? '<span class="dot"></span>' : ''}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function selectCalendarDate(dateStr){
+  if(!calClientId) return;
+  weekendDates[calClientId] = dateStr;
+  if(!weekendIds.includes(calClientId)) weekendIds.push(calClientId);
+  saveDates();
+  saveWeekend();
+  closeCalendar();
+  render();
+  showToast('Scheduled for ' + formatDateShort(dateStr) + ' ✅');
+}
+
+function clearCalendarDate(){
+  if(!calClientId) return;
+  delete weekendDates[calClientId];
+  weekendIds = weekendIds.filter(i => i !== calClientId);
+  saveDates();
+  saveWeekend();
+  closeCalendar();
+  render();
+  showToast('Removed from schedule');
 }
 
 function addToWeekend(id){
