@@ -148,6 +148,9 @@
 
   /* Roster card variant (in weekend already) */
   .client-card.in-weekend{border-color:rgba(232,185,35,.4);background:rgba(232,185,35,.06);}
+  .tappable{cursor:pointer;}
+  .info.tappable{flex:1;}
+  .tap-hint{font-size:11px;color:rgba(251,248,238,.4);font-weight:600;white-space:nowrap;}
   .badge{
     font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
     background:rgba(232,185,35,.18);color:var(--gold-300);
@@ -392,13 +395,13 @@ function renderWeekend(){
     return;
   }
   list.innerHTML = weekendClients.map(c => `
-    <div class="client-card">
+    <div class="client-card ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="removeFromWeekend('${c.id}')"` : ''}>
       <div class="info">
         <div class="name">${escapeHtml(c.name)}</div>
         <div class="price">$${Number(c.price).toLocaleString()}</div>
       </div>
       <div class="actions">
-        ${unlocked ? `<button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>` : ''}
+        ${unlocked ? `<span class="tap-hint">tap to remove</span>` : ''}
       </div>
     </div>
   `).join('');
@@ -414,15 +417,12 @@ function renderRoster(){
     const inWeekend = weekendIds.includes(c.id);
     return `
     <div class="client-card ${inWeekend ? 'in-weekend' : ''}">
-      <div class="info">
+      <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="toggleWeekend('${c.id}')"` : ''}>
         <div class="name">${escapeHtml(c.name)} ${inWeekend ? '<span class="badge">scheduled</span>' : ''}</div>
         <div class="price">$${Number(c.price).toLocaleString()}</div>
       </div>
       <div class="actions">
-        ${unlocked ? `
-          <button class="icon-btn add" onclick="addToWeekend('${c.id}')" ${inWeekend ? 'disabled' : ''} title="Add to weekend">＋</button>
-          <button class="icon-btn delete" onclick="deleteClient('${c.id}')" title="Delete client">🗑</button>
-        ` : ''}
+        ${unlocked ? `<button class="icon-btn delete" onclick="deleteClient('${c.id}')" title="Delete client">🗑</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -432,6 +432,11 @@ function escapeHtml(str){
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+function toggleWeekend(id){
+  if(weekendIds.includes(id)) removeFromWeekend(id);
+  else addToWeekend(id);
 }
 
 function addToWeekend(id){
