@@ -567,21 +567,31 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const STORAGE_KEY = 'ma_mowing_clients_v4';
-const WEEKEND_KEY = 'ma_mowing_weekend_v4';
-const DATES_KEY = 'ma_mowing_dates_v1';
-const COMPLETED_KEY = 'ma_mowing_completed_v1';
-const RECEIPTS_KEY = 'ma_mowing_receipts_v1';
-const PIN_KEY = 'ma_mowing_pin_v1';
 const UNLOCK_KEY = 'ma_mowing_unlocked_session';
 const DEFAULT_PIN = '5070';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDnB0-iq-Tctucniyj6PxKkOQQ9oAYbVY0",
+  authDomain: "project-1477159610605214064.firebaseapp.com",
+  projectId: "project-1477159610605214064",
+  storageBucket: "project-1477159610605214064.firebasestorage.app",
+  messagingSenderId: "1088015079144",
+  appId: "1:1088015079144:web:d3a8d93534d7a9e3449b5d"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const mainDocRef = db.collection('appData').doc('main');
+const receiptsCollRef = db.collection('receipts');
 
 let clients = [];
 let weekendIds = [];
 let weekendDates = {}; // { clientId: 'YYYY-MM-DD' }
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
-let receipts = []; // [{ id, dataURL, date }]
+let receipts = []; // [{ id, dataURL, addedDate, receiptDate, total }]
+let currentPin = DEFAULT_PIN;
 let unlocked = false;
 let pinEntry = '';
 let pinMode = 'unlock'; // 'unlock' | 'setup' | 'confirm'
@@ -591,49 +601,56 @@ let calViewYear = 2026;
 let calViewMonth = 5; // June (0-indexed)
 let activeTab = 'schedule';
 let activeReceiptId = null;
+let firstSnapshotLoaded = false;
 
 async function init(){
-  const savedClients = localStorage.getItem(STORAGE_KEY);
-  if(savedClients){
-    clients = JSON.parse(savedClients);
-  } else {
-    try{
-      const res = await fetch('clients.json');
-      const data = await res.json();
-      clients = data.clients;
-    }catch(e){ clients = []; }
-    saveClients();
-  }
-
-  const savedWeekend = localStorage.getItem(WEEKEND_KEY);
-  weekendIds = savedWeekend ? JSON.parse(savedWeekend) : [];
-
-  const savedDates = localStorage.getItem(DATES_KEY);
-  weekendDates = savedDates ? JSON.parse(savedDates) : {};
-
-  const savedCompleted = localStorage.getItem(COMPLETED_KEY);
-  completedJobs = savedCompleted ? JSON.parse(savedCompleted) : [];
-
-  const savedReceipts = localStorage.getItem(RECEIPTS_KEY);
-  receipts = savedReceipts ? JSON.parse(savedReceipts) : [];
-
   unlocked = sessionStorage.getItem(UNLOCK_KEY) === 'true';
   updateLockUI();
-  render();
+
+  mainDocRef.onSnapshot(async function(doc){
+    if(!doc.exists){
+      let seedClients = [];
+      try{
+        const res = await fetch('clients.json');
+        const data = await res.json();
+        seedClients = data.clients;
+      }catch(e){ seedClients = []; }
+      await mainDocRef.set({
+        clients: seedClients,
+        weekendIds: [],
+        weekendDates: {},
+        completedJobs: [],
+        pin: DEFAULT_PIN
+      });
+      return; // onSnapshot will fire again with the seeded data
+    }
+    const d = doc.data();
+    clients = d.clients || [];
+    weekendIds = d.weekendIds || [];
+    weekendDates = d.weekendDates || {};
+    completedJobs = d.completedJobs || [];
+    currentPin = d.pin || DEFAULT_PIN;
+    firstSnapshotLoaded = true;
+    render();
+    if(activeTab === 'revenue') renderRevenue();
+  }, function(err){
+    showToast('Connection issue — check your internet');
+  });
+
+  receiptsCollRef.onSnapshot(function(snap){
+    receipts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a,b) => (b.addedDate || '').localeCompare(a.addedDate || ''));
+    if(activeTab === 'receipts') renderReceipts();
+  });
 }
 
-function saveClients(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(clients)); }
-function saveWeekend(){ localStorage.setItem(WEEKEND_KEY, JSON.stringify(weekendIds)); }
-function saveDates(){ localStorage.setItem(DATES_KEY, JSON.stringify(weekendDates)); }
-function saveCompleted(){ localStorage.setItem(COMPLETED_KEY, JSON.stringify(completedJobs)); }
-function saveReceipts(){
-  try{
-    localStorage.setItem(RECEIPTS_KEY, JSON.stringify(receipts));
-  }catch(e){
-    showToast('Storage full — delete some old receipts');
-  }
+function syncMainDoc(){
+  mainDocRef.set({
+    clients, weekendIds, weekendDates, completedJobs, pin: currentPin
+  }, { merge: true });
 }
-function getPin(){ return localStorage.getItem(PIN_KEY) || DEFAULT_PIN; }
+
+function getPin(){ return currentPin; }
 
 function switchTab(tab){
   activeTab = tab;
@@ -675,9 +692,7 @@ function handleReceiptFile(event){
         receiptDate: '',
         total: ''
       };
-      receipts.unshift(newReceipt);
-      saveReceipts();
-      renderReceipts();
+      receiptsCollRef.doc(newReceipt.id).set(newReceipt);
       showToast('Receipt saved — scanning… 🔎');
       scanReceipt(newReceipt.id, dataURL);
     };
@@ -691,12 +706,10 @@ function scanReceipt(id, dataURL){
   Tesseract.recognize(dataURL, 'eng')
     .then(({ data: { text } }) => {
       const parsed = parseReceiptText(text);
-      const r = receipts.find(x => x.id === id);
-      if(!r) return;
-      if(parsed.date) r.receiptDate = parsed.date;
-      if(parsed.total) r.total = parsed.total;
-      saveReceipts();
-      renderReceipts();
+      const updates = {};
+      if(parsed.date) updates.receiptDate = parsed.date;
+      if(parsed.total) updates.total = parsed.total;
+      if(Object.keys(updates).length) receiptsCollRef.doc(id).update(updates);
       if(parsed.date || parsed.total) showToast('Receipt scanned ✅ check the details');
       else showToast('Could not auto-read this one — tap to enter manually');
     })
@@ -795,13 +808,11 @@ function openReceiptLightbox(id){
 
 function saveReceiptEdit(){
   if(!unlocked || !activeReceiptId) return;
-  const r = receipts.find(x => x.id === activeReceiptId);
-  if(!r) return;
-  r.receiptDate = document.getElementById('receiptDateInput').value;
-  r.total = document.getElementById('receiptTotalInput').value;
-  saveReceipts();
+  receiptsCollRef.doc(activeReceiptId).update({
+    receiptDate: document.getElementById('receiptDateInput').value,
+    total: document.getElementById('receiptTotalInput').value
+  });
   closeReceiptLightbox();
-  renderReceipts();
   showToast('Receipt updated ✅');
 }
 
@@ -813,10 +824,8 @@ function closeReceiptLightbox(){
 function deleteReceipt(){
   if(!unlocked || !activeReceiptId) return;
   if(!confirm('Delete this receipt?')) return;
-  receipts = receipts.filter(r => r.id !== activeReceiptId);
-  saveReceipts();
+  receiptsCollRef.doc(activeReceiptId).delete();
   closeReceiptLightbox();
-  renderReceipts();
   showToast('Receipt deleted');
 }
 
@@ -834,11 +843,7 @@ function completeJob(id){
   });
   weekendIds = weekendIds.filter(i => i !== id);
   delete weekendDates[id];
-  saveCompleted();
-  saveWeekend();
-  saveDates();
-  render();
-  if(activeTab === 'revenue') renderRevenue();
+  syncMainDoc();
   showToast(c.name + ' marked complete ✅');
 }
 
@@ -846,8 +851,7 @@ function deleteCompletedJob(jobId){
   if(!unlocked) return;
   if(!confirm('Remove this completed job from revenue records?')) return;
   completedJobs = completedJobs.filter(j => j.id !== jobId);
-  saveCompleted();
-  renderRevenue();
+  syncMainDoc();
   showToast('Removed from revenue log');
 }
 
@@ -980,8 +984,7 @@ function initWeekendSort(){
         const newOrder = Array.from(document.querySelectorAll('.day-group'))
           .flatMap(g => Array.from(g.children).map(el => el.getAttribute('data-id')));
         weekendIds = newOrder;
-        saveWeekend();
-        render();
+        syncMainDoc();
       }
     }));
   });
@@ -1083,10 +1086,8 @@ function selectCalendarDate(dateStr){
   if(!calClientId) return;
   weekendDates[calClientId] = dateStr;
   if(!weekendIds.includes(calClientId)) weekendIds.push(calClientId);
-  saveDates();
-  saveWeekend();
+  syncMainDoc();
   closeCalendar();
-  render();
   showToast('Scheduled for ' + formatDateShort(dateStr) + ' ✅');
 }
 
@@ -1094,36 +1095,22 @@ function clearCalendarDate(){
   if(!calClientId) return;
   delete weekendDates[calClientId];
   weekendIds = weekendIds.filter(i => i !== calClientId);
-  saveDates();
-  saveWeekend();
+  syncMainDoc();
   closeCalendar();
-  render();
   showToast('Removed from schedule');
 }
 
 function addToWeekend(id){
   if(!unlocked) return;
   if(!weekendIds.includes(id)) weekendIds.push(id);
-  saveWeekend();
-  render();
+  syncMainDoc();
   showToast('Added to this weekend ✅');
-}
-
-function moveWeekendItem(id, direction){
-  if(!unlocked) return;
-  const idx = weekendIds.indexOf(id);
-  const newIdx = idx + direction;
-  if(newIdx < 0 || newIdx >= weekendIds.length) return;
-  [weekendIds[idx], weekendIds[newIdx]] = [weekendIds[newIdx], weekendIds[idx]];
-  saveWeekend();
-  render();
 }
 
 function removeFromWeekend(id){
   if(!unlocked) return;
   weekendIds = weekendIds.filter(i => i !== id);
-  saveWeekend();
-  render();
+  syncMainDoc();
   showToast('Removed from weekend');
 }
 
@@ -1132,7 +1119,7 @@ function deleteClient(id){
   if(!confirm('Delete this client from the roster?')) return;
   clients = clients.filter(c => c.id !== id);
   weekendIds = weekendIds.filter(i => i !== id);
-  saveClients(); saveWeekend(); render();
+  syncMainDoc();
   showToast('Client deleted');
 }
 
@@ -1149,11 +1136,10 @@ function addClient(){
   }
   const id = 'c' + Date.now();
   clients.push({id, name, price});
-  saveClients();
+  syncMainDoc();
   document.getElementById('newName').value='';
   document.getElementById('newPrice').value='';
   document.getElementById('addForm').classList.remove('show');
-  render();
   showToast('Client added 🌿');
 }
 
@@ -1256,7 +1242,8 @@ function submitPin(){
     updatePinDots();
   } else if(pinMode === 'confirm'){
     if(pinEntry === pendingNewPin){
-      localStorage.setItem(PIN_KEY, pendingNewPin);
+      currentPin = pendingNewPin;
+      syncMainDoc();
       closePinModal();
       showToast('PIN updated 🔐');
     } else {
