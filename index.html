@@ -469,6 +469,7 @@
     <button class="tab-btn active" id="tabScheduleBtn" onclick="switchTab('schedule')">📅 Schedule</button>
     <button class="tab-btn" id="tabRevenueBtn" onclick="switchTab('revenue')">💰 Revenue</button>
     <button class="tab-btn" id="tabReceiptsBtn" onclick="switchTab('receipts')">🧾 Receipts</button>
+    <button class="tab-btn" id="tabCustomersBtn" onclick="switchTab('customers')">👤 Customers</button>
   </div>
 
   <div id="scheduleView">
@@ -570,6 +571,16 @@
         <span class="count" id="receiptsCount">0 total</span>
       </div>
       <div class="receipts-grid" id="receiptsGrid"></div>
+    </div>
+  </div>
+
+  <div id="customersView" style="display:none;">
+    <div class="section">
+      <div class="section-head">
+        <h2>👤 Customer Profiles</h2>
+        <span class="count" id="customersCount">0 total</span>
+      </div>
+      <div id="customersList"></div>
     </div>
   </div>
 
@@ -808,11 +819,34 @@ function switchTab(tab){
   document.getElementById('scheduleView').style.display = tab === 'schedule' ? 'block' : 'none';
   document.getElementById('revenueView').style.display = tab === 'revenue' ? 'block' : 'none';
   document.getElementById('receiptsView').style.display = tab === 'receipts' ? 'block' : 'none';
+  document.getElementById('customersView').style.display = tab === 'customers' ? 'block' : 'none';
   document.getElementById('tabScheduleBtn').classList.toggle('active', tab === 'schedule');
   document.getElementById('tabRevenueBtn').classList.toggle('active', tab === 'revenue');
   document.getElementById('tabReceiptsBtn').classList.toggle('active', tab === 'receipts');
+  document.getElementById('tabCustomersBtn').classList.toggle('active', tab === 'customers');
   if(tab === 'revenue') renderRevenue();
   if(tab === 'receipts') renderReceipts();
+  if(tab === 'customers') renderCustomers();
+}
+
+function renderCustomers(){
+  document.getElementById('customersCount').textContent = clients.length + ' total';
+  const list = document.getElementById('customersList');
+  if(clients.length === 0){
+    list.innerHTML = `<div class="empty-state">No customers yet.</div>`;
+    return;
+  }
+  list.innerHTML = [...clients].sort((a,b) => a.name.localeCompare(b.name)).map(c => `
+    <div class="client-card tappable" onclick="openProfile('${c.id}')">
+      <div class="info">
+        <div class="name">${escapeHtml(c.name)}</div>
+        <div class="price">${c.phone ? escapeHtml(c.phone) : (c.email ? escapeHtml(c.email) : 'No contact info yet')}</div>
+      </div>
+      <div class="actions">
+        <span class="tap-hint">view profile ›</span>
+      </div>
+    </div>
+  `).join('');
 }
 
 function triggerReceiptCapture(){
@@ -1574,6 +1608,7 @@ function onLockClick(){
     render();
     if(activeTab === 'revenue') renderRevenue();
     if(activeTab === 'receipts') renderReceipts();
+    if(activeTab === 'customers') renderCustomers();
     showToast('Locked');
   } else {
     openPinModal('unlock');
@@ -1643,7 +1678,8 @@ function submitPin(){
       closePinModal();
       render();
       if(activeTab === 'revenue') renderRevenue();
-    if(activeTab === 'receipts') renderReceipts();
+      if(activeTab === 'receipts') renderReceipts();
+      if(activeTab === 'customers') renderCustomers();
       showToast('Unlocked 🔓');
     } else {
       shakeDots();
