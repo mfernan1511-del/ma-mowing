@@ -17,6 +17,7 @@
     { "id": "c15", "name": "Steve Quinn (Mother in Law)", "price": 55 },
     { "id": "c16", "name": "Martin Broach", "price": 50 },
     { "id": "c17", "name": "Gene (Old Man)", "price": 40 },
-    { "id": "c18", "name": "Todd", "price": 60 }
+    { "id": "c18", "name": "Todd", "price": 60 },
+    { "id": "c19", "name": "Gene (3 kids)", "price": 70 }
   ]
 }
