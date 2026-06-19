@@ -336,10 +336,11 @@
   }
 
   .tabs{
-    display:flex;gap:8px;margin-bottom:18px;
+    display:flex;gap:8px;margin-bottom:10px;
     background:rgba(255,255,255,.04);border-radius:14px;padding:5px;
     border:1px solid rgba(255,255,255,.06);
   }
+  .tabs.tabs-secondary{margin-bottom:18px;}
   .tab-btn{
     flex:1;border:none;background:transparent;color:rgba(251,248,238,.55);
     font-weight:700;font-size:13px;padding:10px 0;border-radius:10px;cursor:pointer;
@@ -469,6 +470,8 @@
     <button class="tab-btn active" id="tabScheduleBtn" onclick="switchTab('schedule')">📅 Schedule</button>
     <button class="tab-btn" id="tabRevenueBtn" onclick="switchTab('revenue')">💰 Revenue</button>
     <button class="tab-btn" id="tabReceiptsBtn" onclick="switchTab('receipts')">🧾 Receipts</button>
+  </div>
+  <div class="tabs tabs-secondary">
     <button class="tab-btn" id="tabCustomersBtn" onclick="switchTab('customers')">👤 Customers</button>
   </div>
 
