@@ -292,6 +292,10 @@
     filter:drop-shadow(0 6px 16px rgba(0,0,0,.45));
     animation:popIn .4s cubic-bezier(.2,.9,.25,1.2) both;
   }
+  .pin-welcome{
+    font-size:14px;font-weight:700;color:var(--gold-300);
+    margin:0 0 14px;
+  }
   .pin-dots{display:flex;gap:12px;justify-content:center;margin:18px 0;}
   .pin-dot{
     width:16px;height:16px;border-radius:50%;
@@ -653,6 +657,7 @@
 <div class="overlay" id="pinOverlay">
   <div class="modal pin-modal">
     <img src="logo.png" alt="M&amp;A Mowing" class="pin-modal-logo">
+    <p id="pinWelcome" class="pin-welcome">Welcome Marco, Adolfo &amp; Lolo!</p>
     <h3 id="pinTitle">Enter PIN</h3>
     <p id="pinSub">Boss access only</p>
     <div class="pin-dots" id="pinDots">
@@ -1897,6 +1902,7 @@ function openPinModal(mode, cancelable){
   pinCancelable = cancelable !== false;
   buildKeypad();
   document.getElementById('changePinKey').style.visibility = (mode==='unlock') ? 'visible' : 'hidden';
+  document.getElementById('pinWelcome').style.display = (mode === 'unlock') ? 'block' : 'none';
   document.getElementById('pinTitle').textContent = mode === 'confirm' ? 'Confirm New PIN' : (mode === 'setup' ? 'Set New PIN' : 'Enter PIN to View');
   document.getElementById('pinSub').textContent = mode === 'unlock' ? 'M&A Mowing crew access only' : 'Choose 4 digits';
   document.getElementById('pinCancelBtn').style.display = pinCancelable ? 'inline-block' : 'none';
