@@ -318,6 +318,27 @@
   .completed-row .price{font-weight:800;color:var(--gold-300);font-size:15px;}
   .completed-row .row-actions{display:flex;align-items:center;gap:10px;}
 
+  .receipts-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  }
+  .receipt-thumb{
+    position:relative;border-radius:14px;overflow:hidden;
+    aspect-ratio:3/4;background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);cursor:pointer;
+    animation:slideUp .3s ease both;
+  }
+  .receipt-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .receipt-thumb .receipt-date{
+    position:absolute;bottom:0;left:0;right:0;
+    background:linear-gradient(to top, rgba(0,0,0,.75), transparent);
+    color:var(--cream);font-size:10px;font-weight:700;padding:6px 6px 4px;
+  }
+  .receipt-lightbox-img{
+    width:100%;max-height:60vh;object-fit:contain;border-radius:14px;
+    margin-bottom:14px;
+  }
+  .lightbox-modal{max-width:420px;}
+
   .toast{
     position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
     background:var(--green-700);color:var(--cream);
@@ -351,6 +372,7 @@
   <div class="tabs">
     <button class="tab-btn active" id="tabScheduleBtn" onclick="switchTab('schedule')">📅 Schedule</button>
     <button class="tab-btn" id="tabRevenueBtn" onclick="switchTab('revenue')">💰 Revenue</button>
+    <button class="tab-btn" id="tabReceiptsBtn" onclick="switchTab('receipts')">🧾 Receipts</button>
   </div>
 
   <div id="scheduleView">
@@ -409,6 +431,21 @@
     </div>
   </div>
 
+  <div id="receiptsView" style="display:none;">
+    <div class="fab-row" id="receiptControls" style="display:none;">
+      <button class="pill-btn primary" onclick="triggerReceiptCapture()">📷 Add Receipt</button>
+    </div>
+    <input type="file" id="receiptInput" accept="image/*" capture="environment" style="display:none" onchange="handleReceiptFile(event)">
+
+    <div class="section">
+      <div class="section-head">
+        <h2>🧾 Receipts</h2>
+        <span class="count" id="receiptsCount">0 total</span>
+      </div>
+      <div class="receipts-grid" id="receiptsGrid"></div>
+    </div>
+  </div>
+
   <footer>Built for the M&amp;A Mowing crew 🌿💰</footer>
 </div>
 
@@ -444,6 +481,17 @@
   </div>
 </div>
 
+<div class="overlay" id="receiptOverlay">
+  <div class="modal lightbox-modal">
+    <h3 id="receiptLightboxDate">Receipt</h3>
+    <img class="receipt-lightbox-img" id="receiptLightboxImg" src="" alt="Receipt">
+    <div class="cal-actions" id="receiptDeleteWrap" style="display:none;">
+      <button class="pill-btn" onclick="deleteReceipt()">🗑 Delete Receipt</button>
+    </div>
+    <button class="modal-close" onclick="closeReceiptLightbox()">Close</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -452,6 +500,7 @@ const STORAGE_KEY = 'ma_mowing_clients_v4';
 const WEEKEND_KEY = 'ma_mowing_weekend_v4';
 const DATES_KEY = 'ma_mowing_dates_v1';
 const COMPLETED_KEY = 'ma_mowing_completed_v1';
+const RECEIPTS_KEY = 'ma_mowing_receipts_v1';
 const PIN_KEY = 'ma_mowing_pin_v1';
 const UNLOCK_KEY = 'ma_mowing_unlocked_session';
 const DEFAULT_PIN = '5070';
@@ -460,6 +509,7 @@ let clients = [];
 let weekendIds = [];
 let weekendDates = {}; // { clientId: 'YYYY-MM-DD' }
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
+let receipts = []; // [{ id, dataURL, date }]
 let unlocked = false;
 let pinEntry = '';
 let pinMode = 'unlock'; // 'unlock' | 'setup' | 'confirm'
@@ -468,6 +518,7 @@ let calClientId = null;
 let calViewYear = 2026;
 let calViewMonth = 5; // June (0-indexed)
 let activeTab = 'schedule';
+let activeReceiptId = null;
 
 async function init(){
   const savedClients = localStorage.getItem(STORAGE_KEY);
@@ -491,6 +542,9 @@ async function init(){
   const savedCompleted = localStorage.getItem(COMPLETED_KEY);
   completedJobs = savedCompleted ? JSON.parse(savedCompleted) : [];
 
+  const savedReceipts = localStorage.getItem(RECEIPTS_KEY);
+  receipts = savedReceipts ? JSON.parse(savedReceipts) : [];
+
   unlocked = sessionStorage.getItem(UNLOCK_KEY) === 'true';
   updateLockUI();
   render();
@@ -500,15 +554,97 @@ function saveClients(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(clients
 function saveWeekend(){ localStorage.setItem(WEEKEND_KEY, JSON.stringify(weekendIds)); }
 function saveDates(){ localStorage.setItem(DATES_KEY, JSON.stringify(weekendDates)); }
 function saveCompleted(){ localStorage.setItem(COMPLETED_KEY, JSON.stringify(completedJobs)); }
+function saveReceipts(){
+  try{
+    localStorage.setItem(RECEIPTS_KEY, JSON.stringify(receipts));
+  }catch(e){
+    showToast('Storage full — delete some old receipts');
+  }
+}
 function getPin(){ return localStorage.getItem(PIN_KEY) || DEFAULT_PIN; }
 
 function switchTab(tab){
   activeTab = tab;
   document.getElementById('scheduleView').style.display = tab === 'schedule' ? 'block' : 'none';
   document.getElementById('revenueView').style.display = tab === 'revenue' ? 'block' : 'none';
+  document.getElementById('receiptsView').style.display = tab === 'receipts' ? 'block' : 'none';
   document.getElementById('tabScheduleBtn').classList.toggle('active', tab === 'schedule');
   document.getElementById('tabRevenueBtn').classList.toggle('active', tab === 'revenue');
+  document.getElementById('tabReceiptsBtn').classList.toggle('active', tab === 'receipts');
   if(tab === 'revenue') renderRevenue();
+  if(tab === 'receipts') renderReceipts();
+}
+
+function triggerReceiptCapture(){
+  if(!unlocked) return;
+  document.getElementById('receiptInput').click();
+}
+
+function handleReceiptFile(event){
+  const file = event.target.files[0];
+  event.target.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      const maxDim = 1000;
+      let { width, height } = img;
+      if(width > height && width > maxDim){ height = height * (maxDim/width); width = maxDim; }
+      else if(height > maxDim){ width = width * (maxDim/height); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const dataURL = canvas.toDataURL('image/jpeg', 0.7);
+      receipts.unshift({ id: 'r' + Date.now(), dataURL, date: new Date().toISOString().slice(0,10) });
+      saveReceipts();
+      renderReceipts();
+      showToast('Receipt saved 🧾');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderReceipts(){
+  document.getElementById('receiptControls').style.display = unlocked ? 'flex' : 'none';
+  document.getElementById('receiptsCount').textContent = receipts.length + ' total';
+  const grid = document.getElementById('receiptsGrid');
+  if(receipts.length === 0){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">No receipts yet.${unlocked ? '<br>Tap "Add Receipt" to snap one.' : ''}</div>`;
+    return;
+  }
+  grid.innerHTML = receipts.map(r => `
+    <div class="receipt-thumb" onclick="openReceiptLightbox('${r.id}')">
+      <img src="${r.dataURL}" alt="Receipt ${r.date}">
+      <div class="receipt-date">${formatDateShort(r.date)}</div>
+    </div>
+  `).join('');
+}
+
+function openReceiptLightbox(id){
+  const r = receipts.find(x => x.id === id);
+  if(!r) return;
+  activeReceiptId = id;
+  document.getElementById('receiptLightboxDate').textContent = formatDateShort(r.date);
+  document.getElementById('receiptLightboxImg').src = r.dataURL;
+  document.getElementById('receiptDeleteWrap').style.display = unlocked ? 'block' : 'none';
+  document.getElementById('receiptOverlay').classList.add('show');
+}
+
+function closeReceiptLightbox(){
+  document.getElementById('receiptOverlay').classList.remove('show');
+  activeReceiptId = null;
+}
+
+function deleteReceipt(){
+  if(!unlocked || !activeReceiptId) return;
+  if(!confirm('Delete this receipt?')) return;
+  receipts = receipts.filter(r => r.id !== activeReceiptId);
+  saveReceipts();
+  closeReceiptLightbox();
+  renderReceipts();
+  showToast('Receipt deleted');
 }
 
 function completeJob(id){
@@ -823,6 +959,7 @@ function onLockClick(){
     updateLockUI();
     render();
     if(activeTab === 'revenue') renderRevenue();
+    if(activeTab === 'receipts') renderReceipts();
     showToast('Locked');
   } else {
     openPinModal('unlock');
@@ -892,6 +1029,7 @@ function submitPin(){
       closePinModal();
       render();
       if(activeTab === 'revenue') renderRevenue();
+    if(activeTab === 'receipts') renderReceipts();
       showToast('Unlocked 🔓');
     } else {
       shakeDots();
