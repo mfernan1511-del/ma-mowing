@@ -681,11 +681,13 @@
     </div>
     <div id="profileViewFields" style="display:none;"></div>
 
-    <div class="section-head" style="margin-top:18px;">
-      <h2 style="font-size:14px;">🧾 Invoices</h2>
-      <button class="pill-btn primary" id="profileNewInvoiceBtn" onclick="openInvoiceCreate()" style="font-size:12px;padding:6px 12px;display:none;">+ New</button>
+    <div id="profileInvoicesSection">
+      <div class="section-head" style="margin-top:18px;">
+        <h2 style="font-size:14px;">🧾 Invoices</h2>
+        <button class="pill-btn primary" id="profileNewInvoiceBtn" onclick="openInvoiceCreate()" style="font-size:12px;padding:6px 12px;display:none;">+ New</button>
+      </div>
+      <div id="profileInvoiceList"></div>
     </div>
-    <div id="profileInvoiceList"></div>
 
     <button class="modal-close" onclick="closeProfile()">Close</button>
   </div>
@@ -759,12 +761,17 @@ let calClientId = null;
 let calViewYear = 2026;
 let calViewMonth = 5; // June (0-indexed)
 let activeTab = 'schedule';
+const crewMode = new URLSearchParams(location.search).get('crew') === '1';
 let activeReceiptId = null;
 let firstSnapshotLoaded = false;
 
 async function init(){
   unlocked = sessionStorage.getItem(UNLOCK_KEY) === 'true';
   updateLockUI();
+
+  if(crewMode){
+    document.getElementById('tabRevenueBtn').style.display = 'none';
+  }
 
   mainDocRef.onSnapshot(async function(doc){
     if(!doc.exists){
@@ -839,6 +846,7 @@ function checkRecurringRevenue(){
 function getPin(){ return currentPin; }
 
 function switchTab(tab){
+  if(crewMode && tab === 'revenue') return;
   activeTab = tab;
   document.getElementById('scheduleView').style.display = tab === 'schedule' ? 'block' : 'none';
   document.getElementById('revenueView').style.display = tab === 'revenue' ? 'block' : 'none';
@@ -1443,6 +1451,7 @@ function openProfile(id){
   if(!c) return;
   activeProfileClientId = id;
   document.getElementById('profileName').textContent = c.name;
+  document.getElementById('profileInvoicesSection').style.display = crewMode ? 'none' : 'block';
 
   if(unlocked){
     document.getElementById('profileEditFields').style.display = 'block';
@@ -1512,7 +1521,7 @@ function renderProfileInvoices(clientId){
 
 /* ---- Invoices ---- */
 function openInvoiceCreate(){
-  if(!unlocked || !activeProfileClientId) return;
+  if(crewMode || !unlocked || !activeProfileClientId) return;
   const c = clients.find(cl => cl.id === activeProfileClientId);
   document.getElementById('invoiceCreateFor').textContent = 'For: ' + c.name;
   document.getElementById('invoiceDescInput').value = '';
@@ -1546,6 +1555,7 @@ function saveNewInvoice(){
 }
 
 function openInvoiceView(invoiceId){
+  if(crewMode) return;
   const inv = invoices.find(i => i.id === invoiceId);
   if(!inv) return;
   const c = clients.find(cl => cl.id === inv.clientId);
