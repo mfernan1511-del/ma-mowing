@@ -141,6 +141,7 @@
   .icon-btn.add{background:linear-gradient(135deg,var(--gold-400),var(--gold-500));color:#1c1300;}
   .icon-btn.remove{background:rgba(226,85,74,.16);color:var(--danger);}
   .icon-btn.delete{background:rgba(226,85,74,.12);color:var(--danger);font-size:13px;}
+  .icon-btn.order{background:rgba(232,185,35,.12);color:var(--gold-300);font-size:12px;width:30px;height:30px;}
   .icon-btn[disabled]{opacity:.25;pointer-events:none;}
 
   /* Roster card variant (in weekend already) */
@@ -385,19 +386,22 @@ function renderTotals(){
 
 function renderWeekend(){
   const list = document.getElementById('weekendList');
-  const weekendClients = clients.filter(c => weekendIds.includes(c.id));
+  const weekendClients = weekendIds.map(id => clients.find(c => c.id === id)).filter(Boolean);
   if(weekendClients.length === 0){
     list.innerHTML = `<div class="empty-state">No clients added yet.<br>${unlocked ? 'Add some from the roster below 👇' : 'Check back after the boss sets the schedule.'}</div>`;
     return;
   }
-  list.innerHTML = weekendClients.map(c => `
-    <div class="client-card ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="removeFromWeekend('${c.id}')"` : ''}>
-      <div class="info">
+  list.innerHTML = weekendClients.map((c,i) => `
+    <div class="client-card">
+      <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="removeFromWeekend('${c.id}')"` : ''}>
         <div class="name">${escapeHtml(c.name)}</div>
         <div class="price">$${Number(c.price).toLocaleString()}</div>
       </div>
       <div class="actions">
-        ${unlocked ? `<span class="tap-hint">tap to remove</span>` : ''}
+        ${unlocked ? `
+          <button class="icon-btn order" onclick="moveWeekendItem('${c.id}', -1)" ${i===0 ? 'disabled' : ''} title="Move up">▲</button>
+          <button class="icon-btn order" onclick="moveWeekendItem('${c.id}', 1)" ${i===weekendClients.length-1 ? 'disabled' : ''} title="Move down">▼</button>
+        ` : ''}
       </div>
     </div>
   `).join('');
@@ -441,6 +445,16 @@ function addToWeekend(id){
   saveWeekend();
   render();
   showToast('Added to this weekend ✅');
+}
+
+function moveWeekendItem(id, direction){
+  if(!unlocked) return;
+  const idx = weekendIds.indexOf(id);
+  const newIdx = idx + direction;
+  if(newIdx < 0 || newIdx >= weekendIds.length) return;
+  [weekendIds[idx], weekendIds[newIdx]] = [weekendIds[newIdx], weekendIds[idx]];
+  saveWeekend();
+  render();
 }
 
 function removeFromWeekend(id){
