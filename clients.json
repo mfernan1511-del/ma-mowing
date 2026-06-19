@@ -1,10 +1,22 @@
 {
   "clients": [
-    { "id": "c1", "name": "Johnson Residence", "price": 45 },
-    { "id": "c2", "name": "Maple Street Apartments", "price": 120 },
-    { "id": "c3", "name": "Garcia Family", "price": 50 },
-    { "id": "c4", "name": "Oakwood HOA", "price": 200 },
-    { "id": "c5", "name": "Smith Backyard", "price": 35 },
-    { "id": "c6", "name": "Riverside Church", "price": 90 }
+    { "id": "c1", "name": "Kaye Breen", "price": 50 },
+    { "id": "c2", "name": "Robin", "price": 50 },
+    { "id": "c3", "name": "Pat", "price": 50 },
+    { "id": "c4", "name": "Jack", "price": 45 },
+    { "id": "c5", "name": "Julie", "price": 60 },
+    { "id": "c6", "name": "Cindy", "price": 50 },
+    { "id": "c7", "name": "Candy", "price": 30 },
+    { "id": "c8", "name": "Keith", "price": 50 },
+    { "id": "c9", "name": "Don", "price": 50 },
+    { "id": "c10", "name": "Jacob", "price": 60 },
+    { "id": "c11", "name": "Lou Vino", "price": 40 },
+    { "id": "c12", "name": "Linda", "price": 40 },
+    { "id": "c13", "name": "David", "price": 100 },
+    { "id": "c14", "name": "Jackie", "price": 0 },
+    { "id": "c15", "name": "Steve Quinn (Mother in Law)", "price": 55 },
+    { "id": "c16", "name": "Martin Broach", "price": 50 },
+    { "id": "c17", "name": "Gene (Old Man)", "price": 40 },
+    { "id": "c18", "name": "Todd", "price": 60 }
   ]
 }
