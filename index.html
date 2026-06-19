@@ -540,6 +540,22 @@
 
       <div id="mileageList"></div>
     </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>🔁 Recurring Monthly Clients</h2>
+        <span class="count" id="recurringCount">0 total</span>
+      </div>
+      <p style="font-size:12px;color:rgba(251,248,238,.45);margin:-6px 0 12px;">Automatically adds to revenue once each month.</p>
+
+      <div class="add-form" id="recurringForm">
+        <input type="text" id="recurringNameInput" placeholder="Client/Association name">
+        <input type="number" id="recurringAmountInput" placeholder="$ per month" min="0">
+        <button onclick="addRecurringClient()">Add</button>
+      </div>
+
+      <div id="recurringList"></div>
+    </div>
   </div>
 
   <div id="receiptsView" style="display:none;">
@@ -695,6 +711,7 @@ let weekendDates = {}; // { clientId: 'YYYY-MM-DD' }
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
 let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
+let recurringClients = []; // [{ id, name, amount }]
 let activeProfileClientId = null;
 let activeInvoiceId = null;
 let receipts = []; // [{ id, dataURL, addedDate, receiptDate, total }]
@@ -729,6 +746,7 @@ async function init(){
         completedJobs: [],
         mileageLogs: [],
         invoices: [],
+        recurringClients: [],
         pin: DEFAULT_PIN
       });
       return; // onSnapshot will fire again with the seeded data
@@ -740,8 +758,10 @@ async function init(){
     completedJobs = d.completedJobs || [];
     mileageLogs = d.mileageLogs || [];
     invoices = d.invoices || [];
+    recurringClients = d.recurringClients || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
+    checkRecurringRevenue();
     render();
     if(activeTab === 'revenue') renderRevenue();
   }, function(err){
@@ -757,8 +777,28 @@ async function init(){
 
 function syncMainDoc(){
   mainDocRef.set({
-    clients, weekendIds, weekendDates, completedJobs, mileageLogs, invoices, pin: currentPin
+    clients, weekendIds, weekendDates, completedJobs, mileageLogs, invoices, recurringClients, pin: currentPin
   }, { merge: true });
+}
+
+function checkRecurringRevenue(){
+  const monthKey = new Date().toISOString().slice(0,7); // 'YYYY-MM'
+  let changed = false;
+  recurringClients.forEach(rc => {
+    const alreadyLogged = completedJobs.some(j => j.recurringId === rc.id && j.completedDate.slice(0,7) === monthKey);
+    if(!alreadyLogged){
+      completedJobs.push({
+        id: 'job' + Date.now() + Math.random().toString(36).slice(2,6),
+        recurringId: rc.id,
+        name: rc.name,
+        price: rc.amount,
+        scheduledDate: null,
+        completedDate: new Date().toISOString().slice(0,10)
+      });
+      changed = true;
+    }
+  });
+  if(changed) syncMainDoc();
 }
 
 function getPin(){ return currentPin; }
@@ -995,6 +1035,51 @@ function renderRevenue(){
   }
 
   renderMileage();
+  renderRecurring();
+}
+
+function addRecurringClient(){
+  if(!unlocked) return;
+  const name = document.getElementById('recurringNameInput').value.trim();
+  const amount = parseFloat(document.getElementById('recurringAmountInput').value);
+  if(!name || isNaN(amount) || amount <= 0){
+    showToast('Enter a valid name and monthly amount'); return;
+  }
+  recurringClients.push({ id: 'rc' + Date.now(), name, amount });
+  checkRecurringRevenue();
+  syncMainDoc();
+  document.getElementById('recurringNameInput').value = '';
+  document.getElementById('recurringAmountInput').value = '';
+  showToast(name + ' added — logs $' + amount.toLocaleString() + '/month automatically 🔁');
+}
+
+function deleteRecurringClient(id){
+  if(!unlocked) return;
+  if(!confirm('Stop auto-logging this recurring client? Past revenue entries stay in your records.')) return;
+  recurringClients = recurringClients.filter(r => r.id !== id);
+  syncMainDoc();
+  showToast('Recurring client removed');
+}
+
+function renderRecurring(){
+  document.getElementById('recurringForm').style.display = unlocked ? 'flex' : 'none';
+  document.getElementById('recurringCount').textContent = recurringClients.length + ' total';
+  const list = document.getElementById('recurringList');
+  if(recurringClients.length === 0){
+    list.innerHTML = `<div class="empty-state">No recurring clients yet.</div>`;
+    return;
+  }
+  list.innerHTML = recurringClients.map(rc => `
+    <div class="completed-row">
+      <div class="info">
+        <div class="name">${escapeHtml(rc.name)}</div>
+        <div class="meta">$${Number(rc.amount).toLocaleString()} / month</div>
+      </div>
+      <div class="row-actions">
+        ${unlocked ? `<button class="icon-btn delete" onclick="deleteRecurringClient('${rc.id}')" title="Remove">🗑</button>` : ''}
+      </div>
+    </div>
+  `).join('');
 }
 
 function addMileage(){
