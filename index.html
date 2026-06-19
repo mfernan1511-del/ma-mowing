@@ -613,8 +613,6 @@ function renderWeekend(){
       </div>
       <div class="actions">
         ${unlocked ? `
-          <button class="icon-btn order" onclick="moveWeekendItem('${c.id}', -1)" ${i===0 ? 'disabled' : ''} title="Move up">▲</button>
-          <button class="icon-btn order" onclick="moveWeekendItem('${c.id}', 1)" ${i===weekendClients.length-1 ? 'disabled' : ''} title="Move down">▼</button>
           <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Mark completed">✓</button>
           <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
         ` : ''}
