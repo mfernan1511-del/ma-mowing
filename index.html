@@ -660,18 +660,42 @@ function scanReceipt(id, dataURL){
 }
 
 function parseReceiptText(text){
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   let total = '';
   let date = '';
 
-  const totalMatch = text.match(/total[^\n\d$]{0,12}\$?\s?(\d{1,5}(?:[.,]\d{2}))/i);
-  if(totalMatch){
-    total = totalMatch[1].replace(',', '.');
-  } else {
+  // Total is almost always near the bottom of a receipt — scan upward from the last line.
+  for(let i = lines.length - 1; i >= 0; i--){
+    if(/total/i.test(lines[i]) && !/sub\s*-?\s*total/i.test(lines[i])){
+      const m = lines[i].match(/\$?\s?(\d{1,5}(?:[.,]\d{2}))/);
+      if(m){ total = m[1].replace(',', '.'); break; }
+    }
+  }
+  // Fall back to "subtotal" lines if no standalone "total" line was found.
+  if(!total){
+    for(let i = lines.length - 1; i >= 0; i--){
+      if(/total/i.test(lines[i])){
+        const m = lines[i].match(/\$?\s?(\d{1,5}(?:[.,]\d{2}))/);
+        if(m){ total = m[1].replace(',', '.'); break; }
+      }
+    }
+  }
+  // Fall back to the largest dollar amount in the bottom third of the receipt.
+  if(!total){
+    const bottomLines = lines.slice(Math.floor(lines.length * 0.66)).join(' ');
+    const amounts = [...bottomLines.matchAll(/\$\s?(\d{1,5}\.\d{2})/g)].map(m => parseFloat(m[1]));
+    if(amounts.length) total = Math.max(...amounts).toFixed(2);
+  }
+  // Last resort: largest dollar amount anywhere on the receipt.
+  if(!total){
     const amounts = [...text.matchAll(/\$\s?(\d{1,5}\.\d{2})/g)].map(m => parseFloat(m[1]));
     if(amounts.length) total = Math.max(...amounts).toFixed(2);
   }
 
-  const dateMatch = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+  // Date is almost always near the top — scan the first ~40% of lines first.
+  const topLines = lines.slice(0, Math.max(3, Math.ceil(lines.length * 0.4))).join('\n');
+  let dateMatch = topLines.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+  if(!dateMatch) dateMatch = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
   if(dateMatch){
     let [, mo, da, yr] = dateMatch;
     if(yr.length === 2) yr = (parseInt(yr,10) > 50 ? '19' : '20') + yr;
