@@ -319,25 +319,44 @@
   .completed-row .row-actions{display:flex;align-items:center;gap:10px;}
 
   .receipts-grid{
-    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
   }
-  .receipt-thumb{
-    position:relative;border-radius:14px;overflow:hidden;
-    aspect-ratio:3/4;background:rgba(255,255,255,.04);
-    border:1px solid rgba(255,255,255,.08);cursor:pointer;
-    animation:slideUp .3s ease both;
+  .receipt-card{
+    cursor:pointer;animation:slideUp .3s ease both;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:14px;overflow:hidden;
+    transition:transform .15s ease;
   }
+  .receipt-card:active{transform:scale(.96);}
+  .receipt-thumb{aspect-ratio:3/4;overflow:hidden;background:rgba(0,0,0,.2);}
   .receipt-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-  .receipt-thumb .receipt-date{
-    position:absolute;bottom:0;left:0;right:0;
-    background:linear-gradient(to top, rgba(0,0,0,.75), transparent);
-    color:var(--cream);font-size:10px;font-weight:700;padding:6px 6px 4px;
-  }
+  .receipt-info{padding:6px 7px 8px;text-align:center;}
+  .receipt-total{font-size:13px;font-weight:800;color:var(--gold-300);}
+  .receipt-sub{font-size:10px;color:rgba(251,248,238,.45);font-weight:600;margin-top:1px;}
   .receipt-lightbox-img{
     width:100%;max-height:60vh;object-fit:contain;border-radius:14px;
     margin-bottom:14px;
   }
   .lightbox-modal{max-width:420px;}
+  .receipt-field-label{
+    display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--gold-300);font-weight:700;margin:10px 0 5px;
+  }
+  .receipt-input{
+    width:100%;background:rgba(0,0,0,.25);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:10px;color:var(--cream);
+    padding:10px 12px;font-size:14px;outline:none;
+  }
+  .receipt-input:focus{border-color:var(--gold-400);}
+  .receipt-view-fields{
+    display:flex;justify-content:space-around;text-align:center;
+    margin:4px 0 6px;
+  }
+  .receipt-view-fields .vf-total{font-size:20px;font-weight:800;color:var(--gold-300);}
+  .receipt-view-fields .vf-date{font-size:13px;color:rgba(251,248,238,.6);font-weight:600;}
+  .receipt-view-fields .vf-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(251,248,238,.4);margin-bottom:2px;}
 
   .toast{
     position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -483,8 +502,16 @@
 
 <div class="overlay" id="receiptOverlay">
   <div class="modal lightbox-modal">
-    <h3 id="receiptLightboxDate">Receipt</h3>
+    <h3>Receipt</h3>
     <img class="receipt-lightbox-img" id="receiptLightboxImg" src="" alt="Receipt">
+    <div class="receipt-edit-fields" id="receiptEditFields" style="display:none;">
+      <label class="receipt-field-label">Date</label>
+      <input type="date" id="receiptDateInput" class="receipt-input">
+      <label class="receipt-field-label">Total ($)</label>
+      <input type="number" id="receiptTotalInput" class="receipt-input" step="0.01" min="0" placeholder="0.00">
+      <button class="pill-btn primary" style="width:100%;margin-top:10px;" onclick="saveReceiptEdit()">Save Changes</button>
+    </div>
+    <div class="receipt-view-fields" id="receiptViewFields"></div>
     <div class="cal-actions" id="receiptDeleteWrap" style="display:none;">
       <button class="pill-btn" onclick="deleteReceipt()">🗑 Delete Receipt</button>
     </div>
@@ -495,6 +522,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 const STORAGE_KEY = 'ma_mowing_clients_v4';
 const WEEKEND_KEY = 'ma_mowing_weekend_v4';
@@ -596,14 +624,62 @@ function handleReceiptFile(event){
       canvas.width = width; canvas.height = height;
       canvas.getContext('2d').drawImage(img, 0, 0, width, height);
       const dataURL = canvas.toDataURL('image/jpeg', 0.7);
-      receipts.unshift({ id: 'r' + Date.now(), dataURL, date: new Date().toISOString().slice(0,10) });
+      const newReceipt = {
+        id: 'r' + Date.now(),
+        dataURL,
+        addedDate: new Date().toISOString().slice(0,10),
+        receiptDate: '',
+        total: ''
+      };
+      receipts.unshift(newReceipt);
       saveReceipts();
       renderReceipts();
-      showToast('Receipt saved 🧾');
+      showToast('Receipt saved — scanning… 🔎');
+      scanReceipt(newReceipt.id, dataURL);
     };
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+function scanReceipt(id, dataURL){
+  if(typeof Tesseract === 'undefined') return;
+  Tesseract.recognize(dataURL, 'eng')
+    .then(({ data: { text } }) => {
+      const parsed = parseReceiptText(text);
+      const r = receipts.find(x => x.id === id);
+      if(!r) return;
+      if(parsed.date) r.receiptDate = parsed.date;
+      if(parsed.total) r.total = parsed.total;
+      saveReceipts();
+      renderReceipts();
+      if(parsed.date || parsed.total) showToast('Receipt scanned ✅ check the details');
+      else showToast('Could not auto-read this one — tap to enter manually');
+    })
+    .catch(() => showToast('Scan failed — tap to enter details manually'));
+}
+
+function parseReceiptText(text){
+  let total = '';
+  let date = '';
+
+  const totalMatch = text.match(/total[^\n\d$]{0,12}\$?\s?(\d{1,5}(?:[.,]\d{2}))/i);
+  if(totalMatch){
+    total = totalMatch[1].replace(',', '.');
+  } else {
+    const amounts = [...text.matchAll(/\$\s?(\d{1,5}\.\d{2})/g)].map(m => parseFloat(m[1]));
+    if(amounts.length) total = Math.max(...amounts).toFixed(2);
+  }
+
+  const dateMatch = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+  if(dateMatch){
+    let [, mo, da, yr] = dateMatch;
+    if(yr.length === 2) yr = (parseInt(yr,10) > 50 ? '19' : '20') + yr;
+    mo = mo.padStart(2,'0'); da = da.padStart(2,'0');
+    if(+mo >= 1 && +mo <= 12 && +da >= 1 && +da <= 31) date = `${yr}-${mo}-${da}`;
+  }
+
+  return { total, date };
 }
 
 function renderReceipts(){
@@ -615,9 +691,12 @@ function renderReceipts(){
     return;
   }
   grid.innerHTML = receipts.map(r => `
-    <div class="receipt-thumb" onclick="openReceiptLightbox('${r.id}')">
-      <img src="${r.dataURL}" alt="Receipt ${r.date}">
-      <div class="receipt-date">${formatDateShort(r.date)}</div>
+    <div class="receipt-card" onclick="openReceiptLightbox('${r.id}')">
+      <div class="receipt-thumb"><img src="${r.dataURL}" alt="Receipt"></div>
+      <div class="receipt-info">
+        <div class="receipt-total">${r.total ? '$' + Number(r.total).toLocaleString() : 'No total'}</div>
+        <div class="receipt-sub">${r.receiptDate ? formatDateShort(r.receiptDate) : 'No date'}</div>
+      </div>
     </div>
   `).join('');
 }
@@ -626,10 +705,36 @@ function openReceiptLightbox(id){
   const r = receipts.find(x => x.id === id);
   if(!r) return;
   activeReceiptId = id;
-  document.getElementById('receiptLightboxDate').textContent = formatDateShort(r.date);
   document.getElementById('receiptLightboxImg').src = r.dataURL;
   document.getElementById('receiptDeleteWrap').style.display = unlocked ? 'block' : 'none';
+
+  if(unlocked){
+    document.getElementById('receiptEditFields').style.display = 'block';
+    document.getElementById('receiptViewFields').style.display = 'none';
+    document.getElementById('receiptDateInput').value = r.receiptDate || '';
+    document.getElementById('receiptTotalInput').value = r.total || '';
+  } else {
+    document.getElementById('receiptEditFields').style.display = 'none';
+    const vf = document.getElementById('receiptViewFields');
+    vf.style.display = 'flex';
+    vf.innerHTML = `
+      <div><div class="vf-label">Total</div><div class="vf-total">${r.total ? '$' + Number(r.total).toLocaleString() : '—'}</div></div>
+      <div><div class="vf-label">Date</div><div class="vf-date">${r.receiptDate ? formatDateShort(r.receiptDate) : '—'}</div></div>
+    `;
+  }
   document.getElementById('receiptOverlay').classList.add('show');
+}
+
+function saveReceiptEdit(){
+  if(!unlocked || !activeReceiptId) return;
+  const r = receipts.find(x => x.id === activeReceiptId);
+  if(!r) return;
+  r.receiptDate = document.getElementById('receiptDateInput').value;
+  r.total = document.getElementById('receiptTotalInput').value;
+  saveReceipts();
+  closeReceiptLightbox();
+  renderReceipts();
+  showToast('Receipt updated ✅');
 }
 
 function closeReceiptLightbox(){
