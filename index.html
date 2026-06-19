@@ -596,15 +596,24 @@
   <div id="messagesView" style="display:none;">
     <div class="section">
       <div class="section-head">
-        <h2>💬 Weekend Reminder</h2>
+        <h2>💬 Saved Messages</h2>
       </div>
       <p style="font-size:13px;color:rgba(251,248,238,.55);margin:-4px 0 14px;">
-        Tap a customer to open Messages with this pre-written text ready to send:
+        Tap a message, then tap a customer to open it pre-filled in Messages.
       </p>
-      <div class="message-preview">
-        "Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?"
+
+      <div class="fab-row" id="messageControls" style="display:none;">
+        <button class="pill-btn primary" onclick="openMessageCreate()">＋ New Message</button>
       </div>
-      <div id="messagesList" style="margin-top:16px;"></div>
+
+      <div id="messageTemplatesList"></div>
+
+      <div id="messageRecipientsWrap" style="display:none;">
+        <div class="section-head" style="margin-top:18px;">
+          <h2 style="font-size:14px;">Send To</h2>
+        </div>
+        <div id="messagesList"></div>
+      </div>
     </div>
   </div>
 
@@ -708,6 +717,18 @@
   </div>
 </div>
 
+<div class="overlay" id="messageCreateOverlay">
+  <div class="modal">
+    <h3>New Message</h3>
+    <label class="receipt-field-label">Label</label>
+    <input type="text" id="messageLabelInput" class="receipt-input" placeholder="e.g. Spring Cleanup Offer">
+    <label class="receipt-field-label">Message</label>
+    <textarea id="messageTextInput" class="receipt-input" rows="4" placeholder="Type your message..."></textarea>
+    <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveMessageTemplate()">Save Message</button>
+    <button class="modal-close" onclick="closeMessageCreate()">Cancel</button>
+  </div>
+</div>
+
 <div class="overlay" id="invoiceViewOverlay">
   <div class="modal invoice-modal">
     <div class="invoice-paper" id="invoicePaper"></div>
@@ -749,6 +770,8 @@ let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, complete
 let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
 let recurringClients = []; // [{ id, name, amount }]
+let messageTemplates = []; // [{ id, label, text }]
+let selectedMessageId = null;
 let activeProfileClientId = null;
 let activeInvoiceId = null;
 let receipts = []; // [{ id, dataURL, addedDate, receiptDate, total }]
@@ -789,6 +812,9 @@ async function init(){
         mileageLogs: [],
         invoices: [],
         recurringClients: [],
+        messageTemplates: [
+          { id: 'msg_default', label: 'Weekend Reminder', text: 'Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?' }
+        ],
         pin: DEFAULT_PIN
       });
       return; // onSnapshot will fire again with the seeded data
@@ -801,11 +827,13 @@ async function init(){
     mileageLogs = d.mileageLogs || [];
     invoices = d.invoices || [];
     recurringClients = d.recurringClients || [];
+    messageTemplates = d.messageTemplates || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
     checkRecurringRevenue();
     render();
     if(activeTab === 'revenue') renderRevenue();
+    if(activeTab === 'messages') renderMessages();
   }, function(err){
     showToast('Connection issue — check your internet');
   });
@@ -819,7 +847,7 @@ async function init(){
 
 function syncMainDoc(){
   mainDocRef.set({
-    clients, weekendIds, weekendDates, completedJobs, mileageLogs, invoices, recurringClients, pin: currentPin
+    clients, weekendIds, weekendDates, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, pin: currentPin
   }, { merge: true });
 }
 
@@ -865,30 +893,96 @@ function switchTab(tab){
 }
 
 function renderMessages(){
-  const list = document.getElementById('messagesList');
-  const withPhone = [...clients].filter(c => c.phone).sort((a,b) => a.name.localeCompare(b.name));
-  if(withPhone.length === 0){
-    list.innerHTML = `<div class="empty-state">No customers have a phone number saved yet.<br>Add one from their profile in the Customers tab.</div>`;
-    return;
+  document.getElementById('messageControls').style.display = unlocked ? 'flex' : 'none';
+
+  const tlist = document.getElementById('messageTemplatesList');
+  if(messageTemplates.length === 0){
+    tlist.innerHTML = `<div class="empty-state">No saved messages yet.${unlocked ? '<br>Tap "+ New Message" to create one.' : ''}</div>`;
+  } else {
+    tlist.innerHTML = messageTemplates.map(m => `
+      <div class="completed-row" style="cursor:pointer;${selectedMessageId === m.id ? 'border-color:rgba(232,185,35,.5);background:rgba(232,185,35,.08);' : ''}" onclick="selectMessageTemplate('${m.id}')">
+        <div class="info">
+          <div class="name">${escapeHtml(m.label)}</div>
+          <div class="meta">${escapeHtml(m.text)}</div>
+        </div>
+        <div class="row-actions">
+          ${selectedMessageId === m.id ? '<span class="badge">selected</span>' : ''}
+          ${unlocked ? `<button class="icon-btn delete" onclick="event.stopPropagation(); deleteMessageTemplate('${m.id}')" title="Delete">🗑</button>` : ''}
+        </div>
+      </div>
+    `).join('');
   }
-  list.innerHTML = withPhone.map(c => `
-    <div class="client-card tappable" onclick="sendWeekendMessage('${c.id}')">
-      <div class="info">
-        <div class="name">${escapeHtml(c.name)}</div>
-        <div class="price">${escapeHtml(c.phone)}</div>
-      </div>
-      <div class="actions">
-        <span class="tap-hint">send ›</span>
-      </div>
-    </div>
-  `).join('');
+
+  const recipientsWrap = document.getElementById('messageRecipientsWrap');
+  if(selectedMessageId && messageTemplates.some(m => m.id === selectedMessageId)){
+    recipientsWrap.style.display = 'block';
+    const list = document.getElementById('messagesList');
+    const withPhone = [...clients].filter(c => c.phone).sort((a,b) => a.name.localeCompare(b.name));
+    if(withPhone.length === 0){
+      list.innerHTML = `<div class="empty-state">No customers have a phone number saved yet.<br>Add one from their profile in the Customers tab.</div>`;
+    } else {
+      list.innerHTML = withPhone.map(c => `
+        <div class="client-card tappable" onclick="sendWeekendMessage('${c.id}')">
+          <div class="info">
+            <div class="name">${escapeHtml(c.name)}</div>
+            <div class="price">${escapeHtml(c.phone)}</div>
+          </div>
+          <div class="actions">
+            <span class="tap-hint">send ›</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  } else {
+    recipientsWrap.style.display = 'none';
+  }
+}
+
+function selectMessageTemplate(id){
+  selectedMessageId = id;
+  renderMessages();
+}
+
+function openMessageCreate(){
+  if(!unlocked) return;
+  document.getElementById('messageLabelInput').value = '';
+  document.getElementById('messageTextInput').value = '';
+  document.getElementById('messageCreateOverlay').classList.add('show');
+}
+
+function closeMessageCreate(){
+  document.getElementById('messageCreateOverlay').classList.remove('show');
+}
+
+function saveMessageTemplate(){
+  if(!unlocked) return;
+  const label = document.getElementById('messageLabelInput').value.trim();
+  const text = document.getElementById('messageTextInput').value.trim();
+  if(!label || !text){
+    showToast('Enter a label and message'); return;
+  }
+  messageTemplates.push({ id: 'msg' + Date.now(), label, text });
+  syncMainDoc();
+  closeMessageCreate();
+  showToast('Message saved 💬');
+}
+
+function deleteMessageTemplate(id){
+  if(!unlocked) return;
+  if(!confirm('Delete this saved message?')) return;
+  messageTemplates = messageTemplates.filter(m => m.id !== id);
+  if(selectedMessageId === id) selectedMessageId = null;
+  syncMainDoc();
+  showToast('Message deleted');
 }
 
 function sendWeekendMessage(id){
   const c = clients.find(cl => cl.id === id);
   if(!c || !c.phone) return;
+  const template = messageTemplates.find(m => m.id === selectedMessageId);
+  if(!template) return;
   const digits = c.phone.replace(/[^\d+]/g, '');
-  const message = encodeURIComponent('Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?');
+  const message = encodeURIComponent(template.text);
   window.location.href = `sms:${digits}?body=${message}`;
 }
 
@@ -1674,6 +1768,7 @@ function onLockClick(){
     if(activeTab === 'revenue') renderRevenue();
     if(activeTab === 'receipts') renderReceipts();
     if(activeTab === 'customers') renderCustomers();
+    if(activeTab === 'messages') renderMessages();
     showToast('Locked');
   } else {
     openPinModal('unlock');
@@ -1745,6 +1840,7 @@ function submitPin(){
       if(activeTab === 'revenue') renderRevenue();
       if(activeTab === 'receipts') renderReceipts();
       if(activeTab === 'customers') renderCustomers();
+    if(activeTab === 'messages') renderMessages();
       showToast('Unlocked 🔓');
     } else {
       shakeDots();
