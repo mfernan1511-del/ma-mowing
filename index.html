@@ -536,6 +536,7 @@
 
       <div class="fab-row" id="editControls" style="display:none;">
         <button class="pill-btn primary" onclick="toggleAddForm()">＋ New Client</button>
+        <button class="pill-btn primary" onclick="openSpecialProjectModal()">✦ Special Project</button>
       </div>
 
       <div class="add-form" id="addForm">
@@ -744,6 +745,21 @@
     <input type="date" id="invoiceDateInput" class="receipt-input">
     <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveNewInvoice()">Create Invoice</button>
     <button class="modal-close" onclick="closeInvoiceCreate()">Cancel</button>
+  </div>
+</div>
+
+<div class="overlay" id="specialProjectOverlay">
+  <div class="modal">
+    <h3>✦ Special Project</h3>
+    <p style="margin-top:-6px;">A one-off job for this weekend</p>
+    <label class="receipt-field-label">Project Name</label>
+    <input type="text" id="specialNameInput" class="receipt-input" placeholder="e.g. Smith Backyard Cleanup">
+    <label class="receipt-field-label">Price ($)</label>
+    <input type="number" id="specialPriceInput" class="receipt-input" step="0.01" min="0" placeholder="0.00">
+    <label class="receipt-field-label">Date</label>
+    <input type="date" id="specialDateInput" class="receipt-input">
+    <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveSpecialProject()">Add to Weekend</button>
+    <button class="modal-close" onclick="closeSpecialProjectModal()">Cancel</button>
   </div>
 </div>
 
@@ -1433,7 +1449,7 @@ function renderWeekend(){
       <div class="client-card" data-id="${c.id}">
         ${unlocked ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
         <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="openCalendar('${c.id}')"` : ''}>
-          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''}</div>
           <div class="price">$${Number(c.price).toLocaleString()}</div>
         </div>
         <div class="actions">
@@ -1486,7 +1502,7 @@ function renderRoster(){
     return `
     <div class="client-card ${inWeekend ? 'in-weekend' : ''}">
       <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="openCalendar('${c.id}')"` : ''}>
-        <div class="name">${escapeHtml(c.name)} ${inWeekend ? `<span class="badge">${dateLabel}</span>` : ''}</div>
+        <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''} ${inWeekend ? `<span class="badge">${dateLabel}</span>` : ''}</div>
         <div class="price">$${Number(c.price).toLocaleString()}</div>
       </div>
       <div class="actions">
@@ -1805,6 +1821,35 @@ function addClient(){
   document.getElementById('newPrice').value='';
   document.getElementById('addForm').classList.remove('show');
   showToast('Client added 🌿');
+}
+
+function openSpecialProjectModal(){
+  if(!unlocked) return;
+  document.getElementById('specialNameInput').value = '';
+  document.getElementById('specialPriceInput').value = '';
+  document.getElementById('specialDateInput').value = new Date().toISOString().slice(0,10);
+  document.getElementById('specialProjectOverlay').classList.add('show');
+}
+
+function closeSpecialProjectModal(){
+  document.getElementById('specialProjectOverlay').classList.remove('show');
+}
+
+function saveSpecialProject(){
+  if(!unlocked) return;
+  const name = document.getElementById('specialNameInput').value.trim();
+  const price = parseFloat(document.getElementById('specialPriceInput').value);
+  const date = document.getElementById('specialDateInput').value || new Date().toISOString().slice(0,10);
+  if(!name || isNaN(price) || price < 0){
+    showToast('Enter a valid project name and price'); return;
+  }
+  const id = 'sp' + Date.now();
+  clients.push({ id, name, price, isSpecial: true });
+  weekendIds.push(id);
+  weekendDates[id] = date;
+  syncMainDoc();
+  closeSpecialProjectModal();
+  showToast(name + ' added to this weekend ✦');
 }
 
 /* ---- PIN / Lock logic ---- */
