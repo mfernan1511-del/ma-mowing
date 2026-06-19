@@ -142,6 +142,7 @@
   .icon-btn.remove{background:rgba(226,85,74,.16);color:var(--danger);}
   .icon-btn.delete{background:rgba(226,85,74,.12);color:var(--danger);font-size:13px;}
   .icon-btn.order{background:rgba(232,185,35,.12);color:var(--gold-300);font-size:12px;width:30px;height:30px;}
+  .icon-btn.complete{background:rgba(38,143,75,.25);color:#5fd98b;font-size:16px;}
   .drag-handle{
     font-size:20px;color:rgba(251,248,238,.35);
     cursor:grab;padding:4px 8px 4px 0;touch-action:none;
@@ -289,6 +290,34 @@
     background:rgba(226,85,74,.08);
   }
 
+  .tabs{
+    display:flex;gap:8px;margin-bottom:18px;
+    background:rgba(255,255,255,.04);border-radius:14px;padding:5px;
+    border:1px solid rgba(255,255,255,.06);
+  }
+  .tab-btn{
+    flex:1;border:none;background:transparent;color:rgba(251,248,238,.55);
+    font-weight:700;font-size:13px;padding:10px 0;border-radius:10px;cursor:pointer;
+    transition:background .2s ease, color .2s ease, transform .15s ease;
+  }
+  .tab-btn:active{transform:scale(.96);}
+  .tab-btn.active{
+    background:linear-gradient(135deg,var(--gold-400),var(--gold-500));
+    color:#1c1300;box-shadow:var(--shadow-sm);
+  }
+  .revenue-card{background:linear-gradient(135deg,var(--green-800),var(--green-900) 60%,#06170d);}
+  .completed-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+    border-radius:14px;padding:12px 14px;margin-bottom:8px;
+    animation:slideUp .3s ease both;
+  }
+  .completed-row .info{display:flex;flex-direction:column;gap:2px;}
+  .completed-row .name{font-weight:700;font-size:14px;}
+  .completed-row .meta{font-size:12px;color:rgba(251,248,238,.5);}
+  .completed-row .price{font-weight:800;color:var(--gold-300);font-size:15px;}
+  .completed-row .row-actions{display:flex;align-items:center;gap:10px;}
+
   .toast{
     position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
     background:var(--green-700);color:var(--cream);
@@ -319,40 +348,65 @@
     <button class="lock-btn" id="lockBtn" onclick="onLockClick()">🔒 Locked</button>
   </header>
 
-  <div class="earnings-card">
-    <div class="earnings-label">This Weekend's Total</div>
-    <div class="earnings-total" id="totalDisplay">$0</div>
-    <div class="earnings-meta">
-      <div><b id="jobCount">0</b> jobs</div>
-      <div><b id="avgJob">$0</b> avg / job</div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tabScheduleBtn" onclick="switchTab('schedule')">📅 Schedule</button>
+    <button class="tab-btn" id="tabRevenueBtn" onclick="switchTab('revenue')">💰 Revenue</button>
+  </div>
+
+  <div id="scheduleView">
+    <div class="earnings-card">
+      <div class="earnings-label">This Weekend's Total</div>
+      <div class="earnings-total" id="totalDisplay">$0</div>
+      <div class="earnings-meta">
+        <div><b id="jobCount">0</b> jobs</div>
+        <div><b id="avgJob">$0</b> avg / job</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>📅 This Weekend</h2>
+        <span class="count" id="weekendCount">0 clients</span>
+      </div>
+      <div id="weekendList"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>👥 Client Roster</h2>
+        <span class="count" id="rosterCount">0 total</span>
+      </div>
+
+      <div class="fab-row" id="editControls" style="display:none;">
+        <button class="pill-btn primary" onclick="toggleAddForm()">＋ New Client</button>
+      </div>
+
+      <div class="add-form" id="addForm">
+        <input type="text" id="newName" placeholder="Client name">
+        <input type="number" id="newPrice" placeholder="Price $" min="0">
+        <button onclick="addClient()">Add</button>
+      </div>
+
+      <div id="rosterList"></div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-head">
-      <h2>📅 This Weekend</h2>
-      <span class="count" id="weekendCount">0 clients</span>
-    </div>
-    <div id="weekendList"></div>
-  </div>
-
-  <div class="section">
-    <div class="section-head">
-      <h2>👥 Client Roster</h2>
-      <span class="count" id="rosterCount">0 total</span>
+  <div id="revenueView" style="display:none;">
+    <div class="earnings-card revenue-card">
+      <div class="earnings-label" id="revenueYearLabel">2026 Revenue</div>
+      <div class="earnings-total" id="revenueTotalDisplay">$0</div>
+      <div class="earnings-meta">
+        <div><b id="revenueJobCount">0</b> jobs completed</div>
+      </div>
     </div>
 
-    <div class="fab-row" id="editControls" style="display:none;">
-      <button class="pill-btn primary" onclick="toggleAddForm()">＋ New Client</button>
+    <div class="section">
+      <div class="section-head">
+        <h2>✅ Completed Jobs</h2>
+        <span class="count" id="completedCount">0 total</span>
+      </div>
+      <div id="completedList"></div>
     </div>
-
-    <div class="add-form" id="addForm">
-      <input type="text" id="newName" placeholder="Client name">
-      <input type="number" id="newPrice" placeholder="Price $" min="0">
-      <button onclick="addClient()">Add</button>
-    </div>
-
-    <div id="rosterList"></div>
   </div>
 
   <footer>Built for the M&amp;A Mowing crew 🌿💰</footer>
@@ -397,6 +451,7 @@
 const STORAGE_KEY = 'ma_mowing_clients_v4';
 const WEEKEND_KEY = 'ma_mowing_weekend_v4';
 const DATES_KEY = 'ma_mowing_dates_v1';
+const COMPLETED_KEY = 'ma_mowing_completed_v1';
 const PIN_KEY = 'ma_mowing_pin_v1';
 const UNLOCK_KEY = 'ma_mowing_unlocked_session';
 const DEFAULT_PIN = '5070';
@@ -404,6 +459,7 @@ const DEFAULT_PIN = '5070';
 let clients = [];
 let weekendIds = [];
 let weekendDates = {}; // { clientId: 'YYYY-MM-DD' }
+let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
 let unlocked = false;
 let pinEntry = '';
 let pinMode = 'unlock'; // 'unlock' | 'setup' | 'confirm'
@@ -411,6 +467,7 @@ let pendingNewPin = '';
 let calClientId = null;
 let calViewYear = 2026;
 let calViewMonth = 5; // June (0-indexed)
+let activeTab = 'schedule';
 
 async function init(){
   const savedClients = localStorage.getItem(STORAGE_KEY);
@@ -431,6 +488,9 @@ async function init(){
   const savedDates = localStorage.getItem(DATES_KEY);
   weekendDates = savedDates ? JSON.parse(savedDates) : {};
 
+  const savedCompleted = localStorage.getItem(COMPLETED_KEY);
+  completedJobs = savedCompleted ? JSON.parse(savedCompleted) : [];
+
   unlocked = sessionStorage.getItem(UNLOCK_KEY) === 'true';
   updateLockUI();
   render();
@@ -439,7 +499,77 @@ async function init(){
 function saveClients(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(clients)); }
 function saveWeekend(){ localStorage.setItem(WEEKEND_KEY, JSON.stringify(weekendIds)); }
 function saveDates(){ localStorage.setItem(DATES_KEY, JSON.stringify(weekendDates)); }
+function saveCompleted(){ localStorage.setItem(COMPLETED_KEY, JSON.stringify(completedJobs)); }
 function getPin(){ return localStorage.getItem(PIN_KEY) || DEFAULT_PIN; }
+
+function switchTab(tab){
+  activeTab = tab;
+  document.getElementById('scheduleView').style.display = tab === 'schedule' ? 'block' : 'none';
+  document.getElementById('revenueView').style.display = tab === 'revenue' ? 'block' : 'none';
+  document.getElementById('tabScheduleBtn').classList.toggle('active', tab === 'schedule');
+  document.getElementById('tabRevenueBtn').classList.toggle('active', tab === 'revenue');
+  if(tab === 'revenue') renderRevenue();
+}
+
+function completeJob(id){
+  if(!unlocked) return;
+  const c = clients.find(cl => cl.id === id);
+  if(!c) return;
+  completedJobs.push({
+    id: 'job' + Date.now(),
+    clientId: id,
+    name: c.name,
+    price: c.price,
+    scheduledDate: weekendDates[id] || null,
+    completedDate: new Date().toISOString().slice(0,10)
+  });
+  weekendIds = weekendIds.filter(i => i !== id);
+  delete weekendDates[id];
+  saveCompleted();
+  saveWeekend();
+  saveDates();
+  render();
+  if(activeTab === 'revenue') renderRevenue();
+  showToast(c.name + ' marked complete ✅');
+}
+
+function deleteCompletedJob(jobId){
+  if(!unlocked) return;
+  if(!confirm('Remove this completed job from revenue records?')) return;
+  completedJobs = completedJobs.filter(j => j.id !== jobId);
+  saveCompleted();
+  renderRevenue();
+  showToast('Removed from revenue log');
+}
+
+function renderRevenue(){
+  const currentYear = new Date().getFullYear();
+  document.getElementById('revenueYearLabel').textContent = currentYear + ' Revenue';
+  const yearJobs = completedJobs.filter(j => new Date(j.completedDate).getFullYear() === currentYear);
+  const total = yearJobs.reduce((s,j) => s + Number(j.price), 0);
+  document.getElementById('revenueTotalDisplay').textContent = '$' + total.toLocaleString();
+  document.getElementById('revenueJobCount').textContent = yearJobs.length;
+  document.getElementById('completedCount').textContent = completedJobs.length + ' total';
+
+  const list = document.getElementById('completedList');
+  if(completedJobs.length === 0){
+    list.innerHTML = `<div class="empty-state">No completed jobs yet.<br>Mark a job done from the Schedule tab.</div>`;
+    return;
+  }
+  const sorted = [...completedJobs].sort((a,b) => b.completedDate.localeCompare(a.completedDate));
+  list.innerHTML = sorted.map(j => `
+    <div class="completed-row">
+      <div class="info">
+        <div class="name">${escapeHtml(j.name)}</div>
+        <div class="meta">Completed ${formatDateShort(j.completedDate)}</div>
+      </div>
+      <div class="row-actions">
+        <div class="price">$${Number(j.price).toLocaleString()}</div>
+        ${unlocked ? `<button class="icon-btn delete" onclick="deleteCompletedJob('${j.id}')" title="Remove">🗑</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
 
 function render(){
   renderTotals();
@@ -485,6 +615,7 @@ function renderWeekend(){
         ${unlocked ? `
           <button class="icon-btn order" onclick="moveWeekendItem('${c.id}', -1)" ${i===0 ? 'disabled' : ''} title="Move up">▲</button>
           <button class="icon-btn order" onclick="moveWeekendItem('${c.id}', 1)" ${i===weekendClients.length-1 ? 'disabled' : ''} title="Move down">▼</button>
+          <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Mark completed">✓</button>
           <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
         ` : ''}
       </div>
@@ -693,6 +824,7 @@ function onLockClick(){
     sessionStorage.removeItem(UNLOCK_KEY);
     updateLockUI();
     render();
+    if(activeTab === 'revenue') renderRevenue();
     showToast('Locked');
   } else {
     openPinModal('unlock');
@@ -761,6 +893,7 @@ function submitPin(){
       updateLockUI();
       closePinModal();
       render();
+      if(activeTab === 'revenue') renderRevenue();
       showToast('Unlocked 🔓');
     } else {
       shakeDots();
