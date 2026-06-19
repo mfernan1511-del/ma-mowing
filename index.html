@@ -187,6 +187,15 @@
   .icon-btn.delete{background:rgba(226,85,74,.12);color:var(--danger);font-size:13px;}
   .icon-btn.order{background:rgba(232,185,35,.12);color:var(--gold-300);font-size:12px;width:30px;height:30px;}
   .icon-btn.complete{background:rgba(38,143,75,.25);color:#5fd98b;font-size:16px;}
+  .paid-toggle{
+    border:none;border-radius:999px;font-size:11px;font-weight:800;
+    padding:6px 10px;cursor:pointer;white-space:nowrap;
+    transition:transform .15s ease, background .2s ease;
+  }
+  .paid-toggle:active{transform:scale(.92);}
+  .paid-toggle.paid{background:rgba(38,143,75,.25);color:#5fd98b;}
+  .paid-toggle.unpaid{background:rgba(226,85,74,.18);color:var(--danger);}
+  .paid-toggle:disabled{opacity:.7;cursor:default;}
   .icon-btn.profile{background:rgba(255,255,255,.06);color:rgba(251,248,238,.7);font-size:15px;}
   .drag-handle{
     font-size:20px;color:rgba(251,248,238,.35);
@@ -766,6 +775,7 @@ const receiptsCollRef = db.collection('receipts');
 let clients = [];
 let weekendIds = [];
 let weekendDates = {}; // { clientId: 'YYYY-MM-DD' }
+let weekendPaid = {}; // { clientId: true/false }
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
 let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
@@ -813,6 +823,7 @@ async function init(){
         clients: seedClients,
         weekendIds: [],
         weekendDates: {},
+        weekendPaid: {},
         completedJobs: [],
         mileageLogs: [],
         invoices: [],
@@ -828,6 +839,7 @@ async function init(){
     clients = d.clients || [];
     weekendIds = d.weekendIds || [];
     weekendDates = d.weekendDates || {};
+    weekendPaid = d.weekendPaid || {};
     completedJobs = d.completedJobs || [];
     mileageLogs = d.mileageLogs || [];
     invoices = d.invoices || [];
@@ -852,7 +864,7 @@ async function init(){
 
 function syncMainDoc(){
   mainDocRef.set({
-    clients, weekendIds, weekendDates, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, pin: currentPin
   }, { merge: true });
 }
 
@@ -1186,10 +1198,12 @@ function completeJob(id){
     name: c.name,
     price: c.price,
     scheduledDate: weekendDates[id] || null,
-    completedDate: new Date().toISOString().slice(0,10)
+    completedDate: new Date().toISOString().slice(0,10),
+    paid: !!weekendPaid[id]
   });
   weekendIds = weekendIds.filter(i => i !== id);
   delete weekendDates[id];
+  delete weekendPaid[id];
   syncMainDoc();
   showToast(c.name + ' marked complete ✅');
 }
@@ -1219,7 +1233,7 @@ function renderRevenue(){
     list.innerHTML = sorted.map(j => `
       <div class="completed-row">
         <div class="info">
-          <div class="name">${escapeHtml(j.name)}</div>
+          <div class="name">${escapeHtml(j.name)} ${j.paid ? '<span class="badge">paid</span>' : ''}</div>
           <div class="meta">Completed ${formatDateShort(j.completedDate)}</div>
         </div>
         <div class="row-actions">
@@ -1392,7 +1406,9 @@ function renderWeekend(){
           </div>`;
         })();
 
-    const cardsHtml = group.clients.map(c => `
+    const cardsHtml = group.clients.map(c => {
+      const isPaid = !!weekendPaid[c.id];
+      return `
       <div class="client-card" data-id="${c.id}">
         ${unlocked ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
         <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="openCalendar('${c.id}')"` : ''}>
@@ -1400,13 +1416,17 @@ function renderWeekend(){
           <div class="price">$${Number(c.price).toLocaleString()}</div>
         </div>
         <div class="actions">
+          <button class="paid-toggle ${isPaid ? 'paid' : 'unpaid'}" ${unlocked ? `onclick="togglePaid('${c.id}')"` : 'disabled'}>
+            ${isPaid ? '✓ Paid' : 'Unpaid'}
+          </button>
           ${unlocked ? `
             <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Mark completed">✓</button>
             <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
           ` : ''}
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     return `${headerHtml}<div class="day-group" data-datekey="${group.dateKey}">${cardsHtml}</div>`;
   }).join('');
@@ -1538,6 +1558,7 @@ function selectCalendarDate(dateStr){
 function clearCalendarDate(){
   if(!calClientId) return;
   delete weekendDates[calClientId];
+  delete weekendPaid[calClientId];
   weekendIds = weekendIds.filter(i => i !== calClientId);
   syncMainDoc();
   closeCalendar();
@@ -1724,8 +1745,16 @@ function addToWeekend(id){
 function removeFromWeekend(id){
   if(!unlocked) return;
   weekendIds = weekendIds.filter(i => i !== id);
+  delete weekendPaid[id];
   syncMainDoc();
   showToast('Removed from weekend');
+}
+
+function togglePaid(id){
+  if(!unlocked) return;
+  weekendPaid[id] = !weekendPaid[id];
+  syncMainDoc();
+  showToast(weekendPaid[id] ? 'Marked as paid ✅' : 'Marked as unpaid');
 }
 
 function deleteClient(id){
