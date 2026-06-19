@@ -187,6 +187,7 @@
   .icon-btn.delete{background:rgba(226,85,74,.12);color:var(--danger);font-size:13px;}
   .icon-btn.order{background:rgba(232,185,35,.12);color:var(--gold-300);font-size:12px;width:30px;height:30px;}
   .icon-btn.complete{background:rgba(38,143,75,.25);color:#5fd98b;font-size:16px;}
+  .icon-btn.profile{background:rgba(255,255,255,.06);color:rgba(251,248,238,.7);font-size:15px;}
   .drag-handle{
     font-size:20px;color:rgba(251,248,238,.35);
     cursor:grab;padding:4px 8px 4px 0;touch-action:none;
@@ -383,6 +384,38 @@
     margin-bottom:14px;
   }
   .lightbox-modal{max-width:420px;}
+  .profile-modal{max-width:420px;text-align:left;max-height:85vh;overflow-y:auto;}
+  .profile-modal h3{text-align:center;}
+  .profile-view-row{
+    display:flex;justify-content:space-between;gap:10px;
+    padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);
+    font-size:13px;
+  }
+  .profile-view-row .pv-label{color:rgba(251,248,238,.45);font-weight:700;}
+  .profile-view-row .pv-value{color:var(--cream);text-align:right;font-weight:600;}
+  .profile-invoice-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+    border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;
+  }
+  .profile-invoice-row .pi-desc{font-size:13px;font-weight:700;}
+  .profile-invoice-row .pi-date{font-size:11px;color:rgba(251,248,238,.45);}
+  .profile-invoice-row .pi-amount{font-weight:800;color:var(--gold-300);}
+  .invoice-modal{max-width:420px;}
+  .invoice-paper{
+    background:#fff;color:#1c1300;border-radius:14px;padding:24px 20px;
+    text-align:left;
+  }
+  .invoice-paper .inv-logo{display:block;width:64px;margin:0 auto 10px;}
+  .invoice-paper .inv-business{text-align:center;font-weight:800;font-size:16px;margin-bottom:2px;color:var(--green-800);}
+  .invoice-paper .inv-sub{text-align:center;font-size:11px;color:#666;margin-bottom:16px;}
+  .invoice-paper .inv-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:#333;}
+  .invoice-paper .inv-divider{border-top:1px solid #ddd;margin:12px 0;}
+  .invoice-paper .inv-desc-line{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;font-weight:600;}
+  .invoice-paper .inv-total-row{
+    display:flex;justify-content:space-between;font-size:18px;font-weight:800;
+    margin-top:10px;padding-top:10px;border-top:2px solid var(--green-700);color:var(--green-800);
+  }
   .receipt-field-label{
     display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
     color:var(--gold-300);font-weight:700;margin:10px 0 5px;
@@ -492,6 +525,21 @@
       </div>
       <div id="completedList"></div>
     </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>🚚 Truck Mileage</h2>
+        <span class="count" id="mileageTotalLabel">0 mi total</span>
+      </div>
+
+      <div class="add-form" id="mileageForm">
+        <input type="date" id="mileageDateInput" class="receipt-input" style="flex:1;min-width:120px;">
+        <input type="number" id="mileageMilesInput" placeholder="Miles driven" min="0" style="flex:1;min-width:90px;">
+        <button onclick="addMileage()">Add</button>
+      </div>
+
+      <div id="mileageList"></div>
+    </div>
   </div>
 
   <div id="receiptsView" style="display:none;">
@@ -563,6 +611,61 @@
   </div>
 </div>
 
+<div class="overlay" id="profileOverlay">
+  <div class="modal profile-modal">
+    <h3 id="profileName">Customer Profile</h3>
+
+    <div id="profileEditFields" style="display:none;">
+      <label class="receipt-field-label">Price ($)</label>
+      <input type="number" id="profilePriceInput" class="receipt-input" step="0.01" min="0">
+      <label class="receipt-field-label">Phone</label>
+      <input type="tel" id="profilePhoneInput" class="receipt-input" placeholder="(555) 555-5555">
+      <label class="receipt-field-label">Email</label>
+      <input type="email" id="profileEmailInput" class="receipt-input" placeholder="customer@email.com">
+      <label class="receipt-field-label">Address</label>
+      <input type="text" id="profileAddressInput" class="receipt-input" placeholder="123 Main St">
+      <label class="receipt-field-label">Notes</label>
+      <textarea id="profileNotesInput" class="receipt-input" rows="3" placeholder="Gate code, dog in yard, etc."></textarea>
+      <button class="pill-btn primary" style="width:100%;margin-top:10px;" onclick="saveProfileEdit()">Save Changes</button>
+    </div>
+    <div id="profileViewFields" style="display:none;"></div>
+
+    <div class="section-head" style="margin-top:18px;">
+      <h2 style="font-size:14px;">🧾 Invoices</h2>
+      <button class="pill-btn primary" id="profileNewInvoiceBtn" onclick="openInvoiceCreate()" style="font-size:12px;padding:6px 12px;display:none;">+ New</button>
+    </div>
+    <div id="profileInvoiceList"></div>
+
+    <button class="modal-close" onclick="closeProfile()">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="invoiceCreateOverlay">
+  <div class="modal">
+    <h3>New Invoice</h3>
+    <p id="invoiceCreateFor" style="color:var(--gold-300);font-weight:700;margin-top:-6px;"></p>
+    <label class="receipt-field-label">Description</label>
+    <input type="text" id="invoiceDescInput" class="receipt-input" placeholder="Lawn mowing, sod install, etc.">
+    <label class="receipt-field-label">Amount ($)</label>
+    <input type="number" id="invoiceAmountInput" class="receipt-input" step="0.01" min="0" placeholder="0.00">
+    <label class="receipt-field-label">Date</label>
+    <input type="date" id="invoiceDateInput" class="receipt-input">
+    <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveNewInvoice()">Create Invoice</button>
+    <button class="modal-close" onclick="closeInvoiceCreate()">Cancel</button>
+  </div>
+</div>
+
+<div class="overlay" id="invoiceViewOverlay">
+  <div class="modal invoice-modal">
+    <div class="invoice-paper" id="invoicePaper"></div>
+    <button class="pill-btn primary" id="invoiceSendBtn" style="width:100%;margin-top:14px;" onclick="sendInvoiceEmail()">✉️ Send via Email</button>
+    <div class="cal-actions" id="invoiceDeleteWrap" style="display:none;">
+      <button class="pill-btn" onclick="deleteInvoice()">🗑 Delete Invoice</button>
+    </div>
+    <button class="modal-close" onclick="closeInvoiceView()">Close</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -590,6 +693,10 @@ let clients = [];
 let weekendIds = [];
 let weekendDates = {}; // { clientId: 'YYYY-MM-DD' }
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
+let mileageLogs = []; // [{ id, date, miles }]
+let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
+let activeProfileClientId = null;
+let activeInvoiceId = null;
 let receipts = []; // [{ id, dataURL, addedDate, receiptDate, total }]
 let currentPin = DEFAULT_PIN;
 let unlocked = false;
@@ -620,6 +727,8 @@ async function init(){
         weekendIds: [],
         weekendDates: {},
         completedJobs: [],
+        mileageLogs: [],
+        invoices: [],
         pin: DEFAULT_PIN
       });
       return; // onSnapshot will fire again with the seeded data
@@ -629,6 +738,8 @@ async function init(){
     weekendIds = d.weekendIds || [];
     weekendDates = d.weekendDates || {};
     completedJobs = d.completedJobs || [];
+    mileageLogs = d.mileageLogs || [];
+    invoices = d.invoices || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
     render();
@@ -646,7 +757,7 @@ async function init(){
 
 function syncMainDoc(){
   mainDocRef.set({
-    clients, weekendIds, weekendDates, completedJobs, pin: currentPin
+    clients, weekendIds, weekendDates, completedJobs, mileageLogs, invoices, pin: currentPin
   }, { merge: true });
 }
 
@@ -867,18 +978,69 @@ function renderRevenue(){
   const list = document.getElementById('completedList');
   if(completedJobs.length === 0){
     list.innerHTML = `<div class="empty-state">No completed jobs yet.<br>Mark a job done from the Schedule tab.</div>`;
+  } else {
+    const sorted = [...completedJobs].sort((a,b) => b.completedDate.localeCompare(a.completedDate));
+    list.innerHTML = sorted.map(j => `
+      <div class="completed-row">
+        <div class="info">
+          <div class="name">${escapeHtml(j.name)}</div>
+          <div class="meta">Completed ${formatDateShort(j.completedDate)}</div>
+        </div>
+        <div class="row-actions">
+          <div class="price">$${Number(j.price).toLocaleString()}</div>
+          ${unlocked ? `<button class="icon-btn delete" onclick="deleteCompletedJob('${j.id}')" title="Remove">🗑</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderMileage();
+}
+
+function addMileage(){
+  if(!unlocked) return;
+  const date = document.getElementById('mileageDateInput').value || new Date().toISOString().slice(0,10);
+  const miles = parseFloat(document.getElementById('mileageMilesInput').value);
+  if(isNaN(miles) || miles <= 0){
+    showToast('Enter a valid mileage amount'); return;
+  }
+  mileageLogs.push({ id: 'mi' + Date.now(), date, miles });
+  syncMainDoc();
+  document.getElementById('mileageMilesInput').value = '';
+  showToast('Mileage logged 🚚');
+}
+
+function deleteMileage(id){
+  if(!unlocked) return;
+  mileageLogs = mileageLogs.filter(m => m.id !== id);
+  syncMainDoc();
+  showToast('Mileage entry removed');
+}
+
+function renderMileage(){
+  document.getElementById('mileageForm').style.display = unlocked ? 'flex' : 'none';
+  if(unlocked && !document.getElementById('mileageDateInput').value){
+    document.getElementById('mileageDateInput').value = new Date().toISOString().slice(0,10);
+  }
+  const currentYear = new Date().getFullYear();
+  const yearMiles = mileageLogs.filter(m => new Date(m.date).getFullYear() === currentYear)
+    .reduce((s,m) => s + Number(m.miles), 0);
+  document.getElementById('mileageTotalLabel').textContent = yearMiles.toLocaleString() + ' mi this year';
+
+  const list = document.getElementById('mileageList');
+  if(mileageLogs.length === 0){
+    list.innerHTML = `<div class="empty-state">No mileage logged yet.</div>`;
     return;
   }
-  const sorted = [...completedJobs].sort((a,b) => b.completedDate.localeCompare(a.completedDate));
-  list.innerHTML = sorted.map(j => `
+  const sorted = [...mileageLogs].sort((a,b) => b.date.localeCompare(a.date));
+  list.innerHTML = sorted.map(m => `
     <div class="completed-row">
       <div class="info">
-        <div class="name">${escapeHtml(j.name)}</div>
-        <div class="meta">Completed ${formatDateShort(j.completedDate)}</div>
+        <div class="name">${formatDateShort(m.date)}</div>
       </div>
       <div class="row-actions">
-        <div class="price">$${Number(j.price).toLocaleString()}</div>
-        ${unlocked ? `<button class="icon-btn delete" onclick="deleteCompletedJob('${j.id}')" title="Remove">🗑</button>` : ''}
+        <div class="price">${Number(m.miles).toLocaleString()} mi</div>
+        ${unlocked ? `<button class="icon-btn delete" onclick="deleteMileage('${m.id}')" title="Remove">🗑</button>` : ''}
       </div>
     </div>
   `).join('');
@@ -1006,6 +1168,7 @@ function renderRoster(){
         <div class="price">$${Number(c.price).toLocaleString()}</div>
       </div>
       <div class="actions">
+        <button class="icon-btn profile" onclick="openProfile('${c.id}')" title="View profile">👤</button>
         ${unlocked ? `<button class="icon-btn delete" onclick="deleteClient('${c.id}')" title="Delete client">🗑</button>` : ''}
       </div>
     </div>`;
@@ -1098,6 +1261,174 @@ function clearCalendarDate(){
   syncMainDoc();
   closeCalendar();
   showToast('Removed from schedule');
+}
+
+/* ---- Customer Profile ---- */
+function openProfile(id){
+  const c = clients.find(cl => cl.id === id);
+  if(!c) return;
+  activeProfileClientId = id;
+  document.getElementById('profileName').textContent = c.name;
+
+  if(unlocked){
+    document.getElementById('profileEditFields').style.display = 'block';
+    document.getElementById('profileViewFields').style.display = 'none';
+    document.getElementById('profilePriceInput').value = c.price || '';
+    document.getElementById('profilePhoneInput').value = c.phone || '';
+    document.getElementById('profileEmailInput').value = c.email || '';
+    document.getElementById('profileAddressInput').value = c.address || '';
+    document.getElementById('profileNotesInput').value = c.notes || '';
+    document.getElementById('profileNewInvoiceBtn').style.display = 'inline-block';
+  } else {
+    document.getElementById('profileEditFields').style.display = 'none';
+    const vf = document.getElementById('profileViewFields');
+    vf.style.display = 'block';
+    vf.innerHTML = `
+      <div class="profile-view-row"><span class="pv-label">Price</span><span class="pv-value">$${Number(c.price).toLocaleString()}</span></div>
+      <div class="profile-view-row"><span class="pv-label">Phone</span><span class="pv-value">${escapeHtml(c.phone) || '—'}</span></div>
+      <div class="profile-view-row"><span class="pv-label">Email</span><span class="pv-value">${escapeHtml(c.email) || '—'}</span></div>
+      <div class="profile-view-row"><span class="pv-label">Address</span><span class="pv-value">${escapeHtml(c.address) || '—'}</span></div>
+      <div class="profile-view-row"><span class="pv-label">Notes</span><span class="pv-value">${escapeHtml(c.notes) || '—'}</span></div>
+    `;
+    document.getElementById('profileNewInvoiceBtn').style.display = 'none';
+  }
+
+  renderProfileInvoices(id);
+  document.getElementById('profileOverlay').classList.add('show');
+}
+
+function closeProfile(){
+  document.getElementById('profileOverlay').classList.remove('show');
+  activeProfileClientId = null;
+}
+
+function saveProfileEdit(){
+  if(!unlocked || !activeProfileClientId) return;
+  const c = clients.find(cl => cl.id === activeProfileClientId);
+  if(!c) return;
+  const price = parseFloat(document.getElementById('profilePriceInput').value);
+  if(!isNaN(price) && price >= 0) c.price = price;
+  c.phone = document.getElementById('profilePhoneInput').value.trim();
+  c.email = document.getElementById('profileEmailInput').value.trim();
+  c.address = document.getElementById('profileAddressInput').value.trim();
+  c.notes = document.getElementById('profileNotesInput').value.trim();
+  syncMainDoc();
+  closeProfile();
+  showToast('Profile updated ✅');
+}
+
+function renderProfileInvoices(clientId){
+  const list = document.getElementById('profileInvoiceList');
+  const clientInvoices = invoices.filter(i => i.clientId === clientId)
+    .sort((a,b) => b.date.localeCompare(a.date));
+  if(clientInvoices.length === 0){
+    list.innerHTML = `<div class="empty-state">No invoices yet.</div>`;
+    return;
+  }
+  list.innerHTML = clientInvoices.map(inv => `
+    <div class="profile-invoice-row" onclick="openInvoiceView('${inv.id}')">
+      <div>
+        <div class="pi-desc">${escapeHtml(inv.description)}</div>
+        <div class="pi-date">${formatDateShort(inv.date)} · #${inv.invoiceNumber}</div>
+      </div>
+      <div class="pi-amount">$${Number(inv.amount).toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+/* ---- Invoices ---- */
+function openInvoiceCreate(){
+  if(!unlocked || !activeProfileClientId) return;
+  const c = clients.find(cl => cl.id === activeProfileClientId);
+  document.getElementById('invoiceCreateFor').textContent = 'For: ' + c.name;
+  document.getElementById('invoiceDescInput').value = '';
+  document.getElementById('invoiceAmountInput').value = c.price || '';
+  document.getElementById('invoiceDateInput').value = new Date().toISOString().slice(0,10);
+  document.getElementById('invoiceCreateOverlay').classList.add('show');
+}
+
+function closeInvoiceCreate(){
+  document.getElementById('invoiceCreateOverlay').classList.remove('show');
+}
+
+function saveNewInvoice(){
+  if(!unlocked || !activeProfileClientId) return;
+  const description = document.getElementById('invoiceDescInput').value.trim();
+  const amount = parseFloat(document.getElementById('invoiceAmountInput').value);
+  const date = document.getElementById('invoiceDateInput').value || new Date().toISOString().slice(0,10);
+  if(!description || isNaN(amount) || amount < 0){
+    showToast('Enter a valid description and amount'); return;
+  }
+  const invoiceNumber = 1000 + invoices.length + 1;
+  invoices.push({
+    id: 'inv' + Date.now(),
+    clientId: activeProfileClientId,
+    description, amount, date, invoiceNumber
+  });
+  syncMainDoc();
+  closeInvoiceCreate();
+  renderProfileInvoices(activeProfileClientId);
+  showToast('Invoice created 🧾');
+}
+
+function openInvoiceView(invoiceId){
+  const inv = invoices.find(i => i.id === invoiceId);
+  if(!inv) return;
+  const c = clients.find(cl => cl.id === inv.clientId);
+  activeInvoiceId = invoiceId;
+
+  document.getElementById('invoicePaper').innerHTML = `
+    <img class="inv-logo" src="logo.png" alt="M&A Mowing">
+    <div class="inv-business">M&amp;A Mowing</div>
+    <div class="inv-sub">Invoice #${inv.invoiceNumber}</div>
+    <div class="inv-row"><span>Billed To</span><span>${escapeHtml(c ? c.name : 'Unknown')}</span></div>
+    ${c && c.phone ? `<div class="inv-row"><span>Phone</span><span>${escapeHtml(c.phone)}</span></div>` : ''}
+    ${c && c.email ? `<div class="inv-row"><span>Email</span><span>${escapeHtml(c.email)}</span></div>` : ''}
+    ${c && c.address ? `<div class="inv-row"><span>Address</span><span>${escapeHtml(c.address)}</span></div>` : ''}
+    <div class="inv-row"><span>Date</span><span>${formatDateShort(inv.date)}</span></div>
+    <div class="inv-divider"></div>
+    <div class="inv-desc-line"><span>${escapeHtml(inv.description)}</span><span>$${Number(inv.amount).toLocaleString()}</span></div>
+    <div class="inv-total-row"><span>Total Due</span><span>$${Number(inv.amount).toLocaleString()}</span></div>
+  `;
+  document.getElementById('invoiceDeleteWrap').style.display = unlocked ? 'block' : 'none';
+  document.getElementById('invoiceViewOverlay').classList.add('show');
+}
+
+function closeInvoiceView(){
+  document.getElementById('invoiceViewOverlay').classList.remove('show');
+  activeInvoiceId = null;
+}
+
+function sendInvoiceEmail(){
+  const inv = invoices.find(i => i.id === activeInvoiceId);
+  if(!inv) return;
+  const c = clients.find(cl => cl.id === inv.clientId);
+  if(!c || !c.email){
+    showToast("Add this customer's email in their profile first");
+    return;
+  }
+  const subject = encodeURIComponent('Invoice #' + inv.invoiceNumber + ' from M&A Mowing');
+  const body = encodeURIComponent(
+    `Hi ${c.name},\n\n` +
+    `Here's your invoice from M&A Mowing:\n\n` +
+    `Invoice #: ${inv.invoiceNumber}\n` +
+    `Date: ${formatDateShort(inv.date)}\n` +
+    `Description: ${inv.description}\n` +
+    `Amount Due: $${Number(inv.amount).toLocaleString()}\n\n` +
+    `Thank you for your business!\nM&A Mowing`
+  );
+  window.location.href = `mailto:${c.email}?subject=${subject}&body=${body}`;
+}
+
+function deleteInvoice(){
+  if(!unlocked || !activeInvoiceId) return;
+  if(!confirm('Delete this invoice?')) return;
+  const clientId = activeProfileClientId;
+  invoices = invoices.filter(i => i.id !== activeInvoiceId);
+  syncMainDoc();
+  closeInvoiceView();
+  if(clientId) renderProfileInvoices(clientId);
+  showToast('Invoice deleted');
 }
 
 function addToWeekend(id){
