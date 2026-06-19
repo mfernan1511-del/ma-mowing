@@ -628,7 +628,7 @@
       <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
     </div>
     <div class="keypad" id="keypad"></div>
-    <button class="modal-close" onclick="closePinModal()">Cancel</button>
+    <button class="modal-close" id="pinCancelBtn" onclick="closePinModal()">Cancel</button>
   </div>
 </div>
 
@@ -780,6 +780,7 @@ let unlocked = false;
 let pinEntry = '';
 let pinMode = 'unlock'; // 'unlock' | 'setup' | 'confirm'
 let pendingNewPin = '';
+let pinCancelable = true;
 let calClientId = null;
 let calViewYear = 2026;
 let calViewMonth = 5; // June (0-indexed)
@@ -791,6 +792,10 @@ let firstSnapshotLoaded = false;
 async function init(){
   unlocked = sessionStorage.getItem(UNLOCK_KEY) === 'true';
   updateLockUI();
+
+  if(!unlocked){
+    showGate();
+  }
 
   if(crewMode){
     document.getElementById('tabRevenueBtn').style.display = 'none';
@@ -1759,16 +1764,22 @@ function updateLockUI(){
   btn.classList.toggle('unlocked', unlocked);
 }
 
+function showGate(){
+  document.querySelector('.wrap').style.display = 'none';
+  openPinModal('unlock', false);
+}
+
+function hideGate(){
+  document.querySelector('.wrap').style.display = 'block';
+  closePinModal();
+}
+
 function onLockClick(){
   if(unlocked){
     unlocked = false;
     sessionStorage.removeItem(UNLOCK_KEY);
     updateLockUI();
-    render();
-    if(activeTab === 'revenue') renderRevenue();
-    if(activeTab === 'receipts') renderReceipts();
-    if(activeTab === 'customers') renderCustomers();
-    if(activeTab === 'messages') renderMessages();
+    showGate();
     showToast('Locked');
   } else {
     openPinModal('unlock');
@@ -1785,18 +1796,21 @@ function buildKeypad(){
   }).join('');
 }
 
-function openPinModal(mode){
+function openPinModal(mode, cancelable){
   pinMode = mode;
   pinEntry = '';
+  pinCancelable = cancelable !== false;
   buildKeypad();
   document.getElementById('changePinKey').style.visibility = (mode==='unlock') ? 'visible' : 'hidden';
-  document.getElementById('pinTitle').textContent = mode === 'confirm' ? 'Confirm New PIN' : (mode === 'setup' ? 'Set New PIN' : 'Enter PIN');
-  document.getElementById('pinSub').textContent = mode === 'unlock' ? 'Boss access only' : 'Choose 4 digits';
+  document.getElementById('pinTitle').textContent = mode === 'confirm' ? 'Confirm New PIN' : (mode === 'setup' ? 'Set New PIN' : 'Enter PIN to View');
+  document.getElementById('pinSub').textContent = mode === 'unlock' ? 'M&A Mowing crew access only' : 'Choose 4 digits';
+  document.getElementById('pinCancelBtn').style.display = pinCancelable ? 'inline-block' : 'none';
   updatePinDots();
   document.getElementById('pinOverlay').classList.add('show');
 }
 
 function closePinModal(){
+  if(pinMode === 'unlock' && !unlocked && !pinCancelable) return;
   document.getElementById('pinOverlay').classList.remove('show');
   pinEntry = '';
 }
@@ -1835,12 +1849,12 @@ function submitPin(){
       unlocked = true;
       sessionStorage.setItem(UNLOCK_KEY, 'true');
       updateLockUI();
-      closePinModal();
+      hideGate();
       render();
       if(activeTab === 'revenue') renderRevenue();
       if(activeTab === 'receipts') renderReceipts();
       if(activeTab === 'customers') renderCustomers();
-    if(activeTab === 'messages') renderMessages();
+      if(activeTab === 'messages') renderMessages();
       showToast('Unlocked 🔓');
     } else {
       shakeDots();
