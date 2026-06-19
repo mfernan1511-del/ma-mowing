@@ -136,6 +136,29 @@
     border:1.5px dashed rgba(255,255,255,.15);
     color:rgba(251,248,238,.55);font-size:14px;
   }
+  .day-header{
+    display:flex;align-items:baseline;gap:10px;
+    margin:18px 0 8px;padding:0 2px;
+    animation:slideUp .3s ease both;
+  }
+  .day-header:first-child{margin-top:0;}
+  .day-header .day-weekday{
+    font-size:15px;font-weight:800;letter-spacing:.3px;
+    color:var(--gold-300);
+  }
+  .day-header .day-date{
+    font-size:12px;font-weight:700;color:rgba(251,248,238,.45);
+  }
+  .day-header .day-total{
+    margin-left:auto;font-size:13px;font-weight:800;
+    color:var(--cream);background:rgba(232,185,35,.12);
+    padding:3px 10px;border-radius:999px;
+  }
+  .day-header.unscheduled .day-weekday{color:rgba(251,248,238,.4);}
+  .day-group{
+    border-left:2px solid rgba(232,185,35,.18);
+    padding-left:10px;margin-left:2px;
+  }
   .client-card{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     background:rgba(255,255,255,.045);
@@ -878,6 +901,14 @@ function renderTotals(){
   document.getElementById('rosterCount').textContent = clients.length + ' total';
 }
 
+function formatDayHeader(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const weekday = dt.toLocaleDateString('en-US', { weekday:'long' });
+  const dateLabel = dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  return { weekday, dateLabel };
+}
+
 function renderWeekend(){
   const list = document.getElementById('weekendList');
   let weekendClients = weekendIds.map(id => clients.find(c => c.id === id)).filter(Boolean);
@@ -890,38 +921,69 @@ function renderWeekend(){
     list.innerHTML = `<div class="empty-state">No clients added yet.<br>${unlocked ? 'Tap a client below to schedule them 👇' : 'Check back after the boss sets the schedule.'}</div>`;
     return;
   }
-  list.innerHTML = weekendClients.map((c,i) => `
-    <div class="client-card" data-id="${c.id}">
-      ${unlocked ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
-      <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="openCalendar('${c.id}')"` : ''}>
-        <div class="name">${escapeHtml(c.name)}</div>
-        <div class="price">$${Number(c.price).toLocaleString()} ${weekendDates[c.id] ? '· ' + formatDateShort(weekendDates[c.id]) : ''}</div>
+
+  // Group clients by their scheduled date so each day gets its own clearly separated section.
+  const groups = [];
+  weekendClients.forEach(c => {
+    const dateKey = weekendDates[c.id] || 'unscheduled';
+    let group = groups.find(g => g.dateKey === dateKey);
+    if(!group){ group = { dateKey, clients: [] }; groups.push(group); }
+    group.clients.push(c);
+  });
+
+  list.innerHTML = groups.map(group => {
+    const isUnscheduled = group.dateKey === 'unscheduled';
+    const headerHtml = isUnscheduled
+      ? `<div class="day-header unscheduled"><span class="day-weekday">No Date Set</span></div>`
+      : (() => {
+          const { weekday, dateLabel } = formatDayHeader(group.dateKey);
+          const groupTotal = group.clients.reduce((s,c) => s + Number(c.price), 0);
+          return `<div class="day-header">
+            <span class="day-weekday">${weekday}</span>
+            <span class="day-date">${dateLabel}</span>
+            <span class="day-total">$${groupTotal.toLocaleString()}</span>
+          </div>`;
+        })();
+
+    const cardsHtml = group.clients.map(c => `
+      <div class="client-card" data-id="${c.id}">
+        ${unlocked ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
+        <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="openCalendar('${c.id}')"` : ''}>
+          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="price">$${Number(c.price).toLocaleString()}</div>
+        </div>
+        <div class="actions">
+          ${unlocked ? `
+            <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Mark completed">✓</button>
+            <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
+          ` : ''}
+        </div>
       </div>
-      <div class="actions">
-        ${unlocked ? `
-          <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Mark completed">✓</button>
-          <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
-        ` : ''}
-      </div>
-    </div>
-  `).join('');
+    `).join('');
+
+    return `${headerHtml}<div class="day-group" data-datekey="${group.dateKey}">${cardsHtml}</div>`;
+  }).join('');
+
   initWeekendSort();
 }
 
-let weekendSortable = null;
+let weekendSortables = [];
 function initWeekendSort(){
-  const list = document.getElementById('weekendList');
-  if(weekendSortable){ weekendSortable.destroy(); weekendSortable = null; }
+  weekendSortables.forEach(s => s.destroy());
+  weekendSortables = [];
   if(!unlocked || typeof Sortable === 'undefined') return;
-  weekendSortable = Sortable.create(list, {
-    handle: '.drag-handle',
-    animation: 150,
-    onEnd: function(){
-      const newOrder = Array.from(list.children).map(el => el.getAttribute('data-id'));
-      weekendIds = newOrder;
-      saveWeekend();
-      render();
-    }
+  document.querySelectorAll('.day-group').forEach(group => {
+    weekendSortables.push(Sortable.create(group, {
+      handle: '.drag-handle',
+      animation: 150,
+      onEnd: function(){
+        const newOrder = Array.from(document.querySelectorAll('.day-group'))
+          .flatMap(g => Array.from(g.children).map(el => el.getAttribute('data-id')));
+        weekendIds = newOrder;
+        saveWeekend();
+        render();
+      }
+    }));
   });
 }
 
