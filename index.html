@@ -142,6 +142,13 @@
   .icon-btn.remove{background:rgba(226,85,74,.16);color:var(--danger);}
   .icon-btn.delete{background:rgba(226,85,74,.12);color:var(--danger);font-size:13px;}
   .icon-btn.order{background:rgba(232,185,35,.12);color:var(--gold-300);font-size:12px;width:30px;height:30px;}
+  .drag-handle{
+    font-size:20px;color:rgba(251,248,238,.35);
+    cursor:grab;padding:4px 8px 4px 0;touch-action:none;
+    flex-shrink:0;user-select:none;
+  }
+  .sortable-ghost{opacity:.35;}
+  .sortable-chosen{background:rgba(232,185,35,.1) !important;border-color:rgba(232,185,35,.4) !important;}
   .icon-btn[disabled]{opacity:.25;pointer-events:none;}
 
   /* Roster card variant (in weekend already) */
@@ -324,6 +331,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 const STORAGE_KEY = 'ma_mowing_clients_v4';
 const WEEKEND_KEY = 'ma_mowing_weekend_v4';
@@ -392,7 +400,8 @@ function renderWeekend(){
     return;
   }
   list.innerHTML = weekendClients.map((c,i) => `
-    <div class="client-card">
+    <div class="client-card" data-id="${c.id}">
+      ${unlocked ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
       <div class="info ${unlocked ? 'tappable' : ''}" ${unlocked ? `onclick="removeFromWeekend('${c.id}')"` : ''}>
         <div class="name">${escapeHtml(c.name)}</div>
         <div class="price">$${Number(c.price).toLocaleString()}</div>
@@ -405,6 +414,24 @@ function renderWeekend(){
       </div>
     </div>
   `).join('');
+  initWeekendSort();
+}
+
+let weekendSortable = null;
+function initWeekendSort(){
+  const list = document.getElementById('weekendList');
+  if(weekendSortable){ weekendSortable.destroy(); weekendSortable = null; }
+  if(!unlocked || typeof Sortable === 'undefined') return;
+  weekendSortable = Sortable.create(list, {
+    handle: '.drag-handle',
+    animation: 150,
+    onEnd: function(){
+      const newOrder = Array.from(list.children).map(el => el.getAttribute('data-id'));
+      weekendIds = newOrder;
+      saveWeekend();
+      render();
+    }
+  });
 }
 
 function renderRoster(){
