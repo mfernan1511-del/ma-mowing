@@ -341,6 +341,11 @@
     border:1px solid rgba(255,255,255,.06);
   }
   .tabs.tabs-secondary{margin-bottom:18px;}
+  .message-preview{
+    background:rgba(232,185,35,.08);border:1px solid rgba(232,185,35,.25);
+    border-radius:14px;padding:14px 16px;font-size:13px;font-style:italic;
+    color:var(--gold-300);line-height:1.5;
+  }
   .tab-btn{
     flex:1;border:none;background:transparent;color:rgba(251,248,238,.55);
     font-weight:700;font-size:13px;padding:10px 0;border-radius:10px;cursor:pointer;
@@ -473,6 +478,7 @@
   </div>
   <div class="tabs tabs-secondary">
     <button class="tab-btn" id="tabCustomersBtn" onclick="switchTab('customers')">👤 Customers</button>
+    <button class="tab-btn" id="tabMessagesBtn" onclick="switchTab('messages')">💬 Messages</button>
   </div>
 
   <div id="scheduleView">
@@ -584,6 +590,21 @@
         <span class="count" id="customersCount">0 total</span>
       </div>
       <div id="customersList"></div>
+    </div>
+  </div>
+
+  <div id="messagesView" style="display:none;">
+    <div class="section">
+      <div class="section-head">
+        <h2>💬 Weekend Reminder</h2>
+      </div>
+      <p style="font-size:13px;color:rgba(251,248,238,.55);margin:-4px 0 14px;">
+        Tap a customer to open Messages with this pre-written text ready to send:
+      </p>
+      <div class="message-preview">
+        "Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?"
+      </div>
+      <div id="messagesList" style="margin-top:16px;"></div>
     </div>
   </div>
 
@@ -823,13 +844,44 @@ function switchTab(tab){
   document.getElementById('revenueView').style.display = tab === 'revenue' ? 'block' : 'none';
   document.getElementById('receiptsView').style.display = tab === 'receipts' ? 'block' : 'none';
   document.getElementById('customersView').style.display = tab === 'customers' ? 'block' : 'none';
+  document.getElementById('messagesView').style.display = tab === 'messages' ? 'block' : 'none';
   document.getElementById('tabScheduleBtn').classList.toggle('active', tab === 'schedule');
   document.getElementById('tabRevenueBtn').classList.toggle('active', tab === 'revenue');
   document.getElementById('tabReceiptsBtn').classList.toggle('active', tab === 'receipts');
   document.getElementById('tabCustomersBtn').classList.toggle('active', tab === 'customers');
+  document.getElementById('tabMessagesBtn').classList.toggle('active', tab === 'messages');
   if(tab === 'revenue') renderRevenue();
   if(tab === 'receipts') renderReceipts();
   if(tab === 'customers') renderCustomers();
+  if(tab === 'messages') renderMessages();
+}
+
+function renderMessages(){
+  const list = document.getElementById('messagesList');
+  const withPhone = [...clients].filter(c => c.phone).sort((a,b) => a.name.localeCompare(b.name));
+  if(withPhone.length === 0){
+    list.innerHTML = `<div class="empty-state">No customers have a phone number saved yet.<br>Add one from their profile in the Customers tab.</div>`;
+    return;
+  }
+  list.innerHTML = withPhone.map(c => `
+    <div class="client-card tappable" onclick="sendWeekendMessage('${c.id}')">
+      <div class="info">
+        <div class="name">${escapeHtml(c.name)}</div>
+        <div class="price">${escapeHtml(c.phone)}</div>
+      </div>
+      <div class="actions">
+        <span class="tap-hint">send ›</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function sendWeekendMessage(id){
+  const c = clients.find(cl => cl.id === id);
+  if(!c || !c.phone) return;
+  const digits = c.phone.replace(/[^\d+]/g, '');
+  const message = encodeURIComponent('Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?');
+  window.location.href = `sms:${digits}?body=${message}`;
 }
 
 function renderCustomers(){
