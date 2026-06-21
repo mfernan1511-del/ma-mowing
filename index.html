@@ -502,6 +502,18 @@
     width:100%;height:340px;border-radius:14px;overflow:hidden;
     background:#1a2226;
   }
+  .route-order-row{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.06);
+    font-size:13px;
+  }
+  .route-order-row .stop-num{
+    width:22px;height:22px;border-radius:50%;flex-shrink:0;
+    background:rgba(126,152,171,.25);color:var(--gold-300);
+    font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  .route-order-row .stop-name{font-weight:700;flex:1;}
+  .route-order-row .stop-price{color:var(--gold-300);font-weight:700;font-size:12px;}
   .day-header .route-btn{
     font-size:11px;font-weight:700;color:var(--gold-300);
     background:rgba(126,152,171,.15);border:1px solid rgba(126,152,171,.35);
@@ -953,6 +965,8 @@
     <h3 id="routeMapTitle">Route Map</h3>
     <p id="routeMapSub" style="margin-top:-6px;"></p>
     <div id="routeMapContainer"></div>
+    <div id="routeOrderList" style="margin-top:12px;"></div>
+    <button class="pill-btn primary" id="applyOrderBtn" style="width:100%;margin-top:10px;display:none;" onclick="applyOptimalOrder()">✅ Apply This Order to Schedule</button>
     <div id="routeMapMissing" style="font-size:12px;color:rgba(251,248,238,.5);margin-top:10px;"></div>
     <button class="modal-close" onclick="closeRouteMap()">Close</button>
   </div>
@@ -1812,7 +1826,40 @@ async function geocodeAddress(address){
   return null;
 }
 
-async function plotClientsOnMap(clientList, drawRoute){
+function haversineDistance(a, b){
+  const R = 3958.8; // miles
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const lat1 = a.lat * Math.PI / 180;
+  const lat2 = b.lat * Math.PI / 180;
+  const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.asin(Math.sqrt(h));
+}
+
+function nearestNeighborOrder(points){
+  if(points.length <= 1) return points;
+  const remaining = points.slice();
+  const ordered = [remaining.shift()];
+  while(remaining.length){
+    const last = ordered[ordered.length - 1];
+    let bestIdx = 0, bestDist = Infinity;
+    remaining.forEach((p, i) => {
+      const d = haversineDistance(last, p);
+      if(d < bestDist){ bestDist = d; bestIdx = i; }
+    });
+    ordered.push(remaining.splice(bestIdx, 1)[0]);
+  }
+  return ordered;
+}
+
+let currentRouteOrder = [];
+let currentRouteDateKey = null;
+
+async function plotClientsOnMap(clientList, optimize, dateKey){
+  currentRouteDateKey = dateKey || null;
+  document.getElementById('applyOrderBtn').style.display = 'none';
+  document.getElementById('routeOrderList').innerHTML = '';
+
   const withAddress = clientList.filter(c => c.address);
   const missing = clientList.filter(c => !c.address);
   if(missing.length){
@@ -1828,7 +1875,7 @@ async function plotClientsOnMap(clientList, drawRoute){
 
   document.getElementById('routeMapContainer').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(251,248,238,.5);font-size:13px;">Loading map…</div>';
 
-  const points = [];
+  let points = [];
   let changedAnyClient = false;
   for(const c of withAddress){
     if(c.geo && c.geo.lat && c.geo.lng){
@@ -1851,6 +1898,9 @@ async function plotClientsOnMap(clientList, drawRoute){
     return;
   }
 
+  if(optimize) points = nearestNeighborOrder(points);
+  currentRouteOrder = points;
+
   document.getElementById('routeMapContainer').innerHTML = '';
   if(routeMapInstance){ routeMapInstance.remove(); routeMapInstance = null; }
   routeMapInstance = L.map('routeMapContainer').setView([points[0].lat, points[0].lng], 11);
@@ -1861,11 +1911,22 @@ async function plotClientsOnMap(clientList, drawRoute){
   const latLngs = points.map(p => [p.lat, p.lng]);
   points.forEach((p, i) => {
     L.marker([p.lat, p.lng]).addTo(routeMapInstance)
-      .bindPopup(`<b>${drawRoute ? (i+1) + '. ' : ''}${escapeHtml(p.client.name)}</b><br>$${Number(p.client.price).toLocaleString()}`);
+      .bindPopup(`<b>${optimize ? (i+1) + '. ' : ''}${escapeHtml(p.client.name)}</b><br>$${Number(p.client.price).toLocaleString()}`);
   });
   if(latLngs.length > 1){
-    if(drawRoute) L.polyline(latLngs, { color: '#7e98ab', weight: 3, dashArray: '6,8' }).addTo(routeMapInstance);
+    if(optimize) L.polyline(latLngs, { color: '#7e98ab', weight: 3, dashArray: '6,8' }).addTo(routeMapInstance);
     routeMapInstance.fitBounds(latLngs, { padding: [30,30] });
+  }
+
+  if(optimize && points.length > 1){
+    document.getElementById('routeOrderList').innerHTML = points.map((p, i) => `
+      <div class="route-order-row">
+        <span class="stop-num">${i+1}</span>
+        <span class="stop-name">${escapeHtml(p.client.name)}</span>
+        <span class="stop-price">$${Number(p.client.price).toLocaleString()}</span>
+      </div>
+    `).join('');
+    if(dateKey) document.getElementById('applyOrderBtn').style.display = 'block';
   }
 }
 
@@ -1879,7 +1940,7 @@ async function openRouteMap(dateKey){
   document.getElementById('routeMapMissing').textContent = '';
   document.getElementById('routeMapOverlay').classList.add('show');
 
-  plotClientsOnMap(dayClients, true);
+  plotClientsOnMap(dayClients, true, dateKey);
 }
 
 async function openServiceAreaMap(){
@@ -1888,7 +1949,24 @@ async function openServiceAreaMap(){
   document.getElementById('routeMapMissing').textContent = '';
   document.getElementById('routeMapOverlay').classList.add('show');
 
-  plotClientsOnMap(clients, false);
+  plotClientsOnMap(clients, false, null);
+}
+
+function applyOptimalOrder(){
+  if(!currentRouteDateKey || currentRouteOrder.length === 0) return;
+  const orderedIds = currentRouteOrder.map(p => p.client.id);
+  const otherIds = weekendIds.filter(id => !orderedIds.includes(id));
+  const dayPositions = weekendIds
+    .map((id, i) => ({ id, i }))
+    .filter(o => orderedIds.includes(o.id))
+    .map(o => o.i);
+  const insertAt = Math.min(...dayPositions);
+  const before = otherIds.filter((id, i) => weekendIds.indexOf(id) < insertAt);
+  const after = otherIds.filter(id => !before.includes(id));
+  weekendIds = [...before, ...orderedIds, ...after];
+  syncMainDoc();
+  closeRouteMap();
+  showToast('Schedule reordered to match the map route ✅');
 }
 
 function closeRouteMap(){
