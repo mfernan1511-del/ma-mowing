@@ -2144,8 +2144,14 @@ function openPinModal(mode, cancelable){
   buildKeypad();
   document.getElementById('changePinKey').style.visibility = (mode==='unlock') ? 'visible' : 'hidden';
   document.getElementById('pinWelcome').style.display = (mode === 'unlock') ? 'block' : 'none';
-  document.getElementById('pinTitle').textContent = mode === 'confirm' ? 'Confirm New PIN' : (mode === 'setup' ? 'Set New PIN' : 'Enter PIN to View');
-  document.getElementById('pinSub').textContent = mode === 'unlock' ? 'M&A Mowing crew access only' : 'Choose 4 digits';
+  const titles = {
+    confirm: 'Confirm New PIN',
+    setup: 'Set New PIN',
+    verifyOld: 'Enter Current PIN',
+    unlock: 'Enter PIN to View'
+  };
+  document.getElementById('pinTitle').textContent = titles[mode] || 'Enter PIN';
+  document.getElementById('pinSub').textContent = mode === 'unlock' ? 'M&A Mowing crew access only' : (mode === 'verifyOld' ? 'Verify it’s you before changing it' : 'Choose 4 digits');
   document.getElementById('pinCancelBtn').style.display = pinCancelable ? 'inline-block' : 'none';
   document.getElementById('faceIdBtn').style.display = (mode === 'unlock' && localStorage.getItem(FACEID_CRED_KEY)) ? 'block' : 'none';
   updatePinDots();
@@ -2160,7 +2166,7 @@ function closePinModal(){
 
 function startChangePin(){
   pendingNewPin = '';
-  openPinModal('setup');
+  openPinModal('verifyOld');
 }
 
 function pinPress(d){
@@ -2201,6 +2207,17 @@ function submitPin(){
       showToast('Unlocked 🔓');
       notifyLogin();
       maybeOfferFaceID();
+    } else {
+      shakeDots();
+      setTimeout(()=>{ pinEntry=''; updatePinDots(); }, 350);
+    }
+  } else if(pinMode === 'verifyOld'){
+    if(pinEntry === getPin()){
+      pinEntry = '';
+      pinMode = 'setup';
+      document.getElementById('pinTitle').textContent = 'Set New PIN';
+      document.getElementById('pinSub').textContent = 'Choose 4 digits';
+      updatePinDots();
     } else {
       shakeDots();
       setTimeout(()=>{ pinEntry=''; updatePinDots(); }, 350);
