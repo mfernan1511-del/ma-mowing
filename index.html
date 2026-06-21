@@ -256,6 +256,7 @@
     background:rgba(78,102,117,.15);color:#4d6675;
     padding:3px 7px;border-radius:999px;margin-left:6px;
   }
+  .badge.overdue{background:rgba(226,85,74,.18);color:#c23a30;}
 
   /* Add client form */
   .add-form{
@@ -562,6 +563,7 @@
   <div class="tabs tabs-secondary">
     <button class="tab-btn" id="tabCustomersBtn" onclick="switchTab('customers')">👤 Customers</button>
     <button class="tab-btn" id="tabMessagesBtn" onclick="switchTab('messages')">💬 Messages</button>
+    <button class="tab-btn" id="tabMaintenanceBtn" onclick="switchTab('maintenance')">🔧 Maintenance</button>
   </div>
 
   <div id="scheduleView">
@@ -701,6 +703,24 @@
     </div>
   </div>
 
+  <div id="maintenanceView" style="display:none;">
+    <div class="section">
+      <div class="section-head">
+        <h2>🔧 Truck &amp; Equipment Maintenance</h2>
+        <span class="count" id="maintenanceCount">0 total</span>
+      </div>
+      <p style="font-size:13px;color:rgba(251,248,238,.55);margin:-4px 0 14px;">
+        Set a reminder by mileage or by date — we'll flag it when it's due.
+      </p>
+
+      <div class="fab-row" id="maintenanceControls" style="display:none;">
+        <button class="pill-btn primary" onclick="openMaintenanceCreate()">＋ New Task</button>
+      </div>
+
+      <div id="maintenanceList"></div>
+    </div>
+  </div>
+
   <footer>Built for the M&amp;A Mowing crew 🌿💰</footer>
 </div>
 
@@ -831,6 +851,29 @@
   </div>
 </div>
 
+<div class="overlay" id="maintenanceCreateOverlay">
+  <div class="modal">
+    <h3>🔧 New Maintenance Task</h3>
+    <label class="receipt-field-label">Task Name</label>
+    <input type="text" id="maintNameInput" class="receipt-input" placeholder="e.g. Oil Change, Sharpen Blades">
+    <label class="receipt-field-label">Remind Me By</label>
+    <select id="maintTypeInput" class="receipt-input" onchange="updateMaintTypeFields()">
+      <option value="mileage">Mileage Interval</option>
+      <option value="date">Date Interval</option>
+    </select>
+    <div id="maintMileageFields">
+      <label class="receipt-field-label">Every how many miles?</label>
+      <input type="number" id="maintIntervalMilesInput" class="receipt-input" min="1" placeholder="e.g. 3000">
+    </div>
+    <div id="maintDateFields" style="display:none;">
+      <label class="receipt-field-label">Every how many days?</label>
+      <input type="number" id="maintIntervalDaysInput" class="receipt-input" min="1" placeholder="e.g. 90">
+    </div>
+    <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveMaintenanceTask()">Create Task</button>
+    <button class="modal-close" onclick="closeMaintenanceCreate()">Cancel</button>
+  </div>
+</div>
+
 <div class="overlay" id="invoiceViewOverlay">
   <div class="modal invoice-modal">
     <div class="invoice-paper" id="invoicePaper"></div>
@@ -875,6 +918,7 @@ let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
 let recurringClients = []; // [{ id, name, amount }]
 let messageTemplates = []; // [{ id, label, text }]
+let maintenanceTasks = []; // [{ id, name, type, intervalMiles/intervalDays, lastDoneMileage/lastDoneDate }]
 let selectedMessageId = null;
 let activeProfileClientId = null;
 let activeInvoiceId = null;
@@ -928,6 +972,7 @@ async function init(){
         messageTemplates: [
           { id: 'msg_default', label: 'Weekend Reminder', text: 'Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?' }
         ],
+        maintenanceTasks: [],
         pin: DEFAULT_PIN
       });
       return; // onSnapshot will fire again with the seeded data
@@ -943,12 +988,14 @@ async function init(){
     invoices = d.invoices || [];
     recurringClients = d.recurringClients || [];
     messageTemplates = d.messageTemplates || [];
+    maintenanceTasks = d.maintenanceTasks || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
     checkRecurringRevenue();
     render();
     if(activeTab === 'revenue') renderRevenue();
     if(activeTab === 'messages') renderMessages();
+    if(activeTab === 'maintenance') renderMaintenance();
   }, function(err){
     showToast('Connection issue — check your internet');
   });
@@ -962,7 +1009,7 @@ async function init(){
 
 function syncMainDoc(){
   mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, pin: currentPin
   }, { merge: true });
 }
 
@@ -996,15 +1043,18 @@ function switchTab(tab){
   document.getElementById('receiptsView').style.display = tab === 'receipts' ? 'block' : 'none';
   document.getElementById('customersView').style.display = tab === 'customers' ? 'block' : 'none';
   document.getElementById('messagesView').style.display = tab === 'messages' ? 'block' : 'none';
+  document.getElementById('maintenanceView').style.display = tab === 'maintenance' ? 'block' : 'none';
   document.getElementById('tabScheduleBtn').classList.toggle('active', tab === 'schedule');
   document.getElementById('tabRevenueBtn').classList.toggle('active', tab === 'revenue');
   document.getElementById('tabReceiptsBtn').classList.toggle('active', tab === 'receipts');
   document.getElementById('tabCustomersBtn').classList.toggle('active', tab === 'customers');
   document.getElementById('tabMessagesBtn').classList.toggle('active', tab === 'messages');
+  document.getElementById('tabMaintenanceBtn').classList.toggle('active', tab === 'maintenance');
   if(tab === 'revenue') renderRevenue();
   if(tab === 'receipts') renderReceipts();
   if(tab === 'customers') renderCustomers();
   if(tab === 'messages') renderMessages();
+  if(tab === 'maintenance') renderMaintenance();
 }
 
 function renderMessages(){
@@ -1435,6 +1485,121 @@ function renderMileage(){
       <div class="row-actions">
         <div class="price">${Number(m.miles).toLocaleString()} mi</div>
         ${canEdit() ? `<button class="icon-btn delete" onclick="deleteMileage('${m.id}')" title="Remove">🗑</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function getTotalMileage(){
+  return mileageLogs.reduce((s,m) => s + Number(m.miles), 0);
+}
+
+function updateMaintTypeFields(){
+  const type = document.getElementById('maintTypeInput').value;
+  document.getElementById('maintMileageFields').style.display = type === 'mileage' ? 'block' : 'none';
+  document.getElementById('maintDateFields').style.display = type === 'date' ? 'block' : 'none';
+}
+
+function openMaintenanceCreate(){
+  if(!canEdit()) return;
+  document.getElementById('maintNameInput').value = '';
+  document.getElementById('maintTypeInput').value = 'mileage';
+  document.getElementById('maintIntervalMilesInput').value = '';
+  document.getElementById('maintIntervalDaysInput').value = '';
+  updateMaintTypeFields();
+  document.getElementById('maintenanceCreateOverlay').classList.add('show');
+}
+
+function closeMaintenanceCreate(){
+  document.getElementById('maintenanceCreateOverlay').classList.remove('show');
+}
+
+function saveMaintenanceTask(){
+  if(!canEdit()) return;
+  const name = document.getElementById('maintNameInput').value.trim();
+  const type = document.getElementById('maintTypeInput').value;
+  if(!name){ showToast('Enter a task name'); return; }
+
+  const task = { id: 'mt' + Date.now(), name, type };
+  if(type === 'mileage'){
+    const interval = parseFloat(document.getElementById('maintIntervalMilesInput').value);
+    if(isNaN(interval) || interval <= 0){ showToast('Enter a valid mileage interval'); return; }
+    task.intervalMiles = interval;
+    task.lastDoneMileage = getTotalMileage();
+  } else {
+    const interval = parseFloat(document.getElementById('maintIntervalDaysInput').value);
+    if(isNaN(interval) || interval <= 0){ showToast('Enter a valid day interval'); return; }
+    task.intervalDays = interval;
+    task.lastDoneDate = new Date().toISOString().slice(0,10);
+  }
+
+  maintenanceTasks.push(task);
+  syncMainDoc();
+  closeMaintenanceCreate();
+  showToast('Maintenance task added 🔧');
+}
+
+function markMaintenanceDone(id){
+  if(!canEdit()) return;
+  const task = maintenanceTasks.find(t => t.id === id);
+  if(!task) return;
+  if(task.type === 'mileage') task.lastDoneMileage = getTotalMileage();
+  else task.lastDoneDate = new Date().toISOString().slice(0,10);
+  syncMainDoc();
+  showToast(task.name + ' marked done ✅');
+}
+
+function deleteMaintenanceTask(id){
+  if(!canEdit()) return;
+  if(!confirm('Delete this maintenance task?')) return;
+  maintenanceTasks = maintenanceTasks.filter(t => t.id !== id);
+  syncMainDoc();
+  showToast('Task deleted');
+}
+
+function getMaintenanceStatus(task){
+  if(task.type === 'mileage'){
+    const remaining = task.intervalMiles - (getTotalMileage() - (task.lastDoneMileage || 0));
+    return {
+      overdue: remaining <= 0,
+      label: remaining <= 0
+        ? `Overdue by ${Math.abs(Math.round(remaining)).toLocaleString()} mi`
+        : `Due in ${Math.round(remaining).toLocaleString()} mi`
+    };
+  } else {
+    const lastDone = task.lastDoneDate ? new Date(task.lastDoneDate) : new Date();
+    const daysSince = Math.floor((Date.now() - lastDone.getTime()) / 86400000);
+    const remaining = task.intervalDays - daysSince;
+    return {
+      overdue: remaining <= 0,
+      label: remaining <= 0
+        ? `Overdue by ${Math.abs(remaining)} day${Math.abs(remaining) === 1 ? '' : 's'}`
+        : `Due in ${remaining} day${remaining === 1 ? '' : 's'}`
+    };
+  }
+}
+
+function renderMaintenance(){
+  document.getElementById('maintenanceControls').style.display = canEdit() ? 'flex' : 'none';
+  document.getElementById('maintenanceCount').textContent = maintenanceTasks.length + ' total';
+  const list = document.getElementById('maintenanceList');
+  if(maintenanceTasks.length === 0){
+    list.innerHTML = `<div class="empty-state">No maintenance tasks yet.${canEdit() ? '<br>Tap "+ New Task" to add one.' : ''}</div>`;
+    return;
+  }
+  const withStatus = maintenanceTasks.map(t => ({ task: t, status: getMaintenanceStatus(t) }));
+  withStatus.sort((a,b) => (a.status.overdue === b.status.overdue) ? 0 : (a.status.overdue ? -1 : 1));
+  list.innerHTML = withStatus.map(({ task, status }) => `
+    <div class="completed-row">
+      <div class="info">
+        <div class="name">${escapeHtml(task.name)} ${status.overdue ? '<span class="badge overdue">overdue</span>' : ''}</div>
+        <div class="meta">${status.label} · ${task.type === 'mileage' ? task.intervalMiles.toLocaleString() + ' mi interval' : task.intervalDays + ' day interval'}</div>
+      </div>
+      <div class="row-actions">
+        ${canEdit() ? `
+          <button class="icon-btn complete" onclick="markMaintenanceDone('${task.id}')" title="Mark done">✓</button>
+          <button class="icon-btn delete" onclick="deleteMaintenanceTask('${task.id}')" title="Delete">🗑</button>
+        ` : ''}
       </div>
     </div>
   `).join('');
@@ -2023,6 +2188,7 @@ function rerenderActiveTab(){
   if(activeTab === 'receipts') renderReceipts();
   if(activeTab === 'customers') renderCustomers();
   if(activeTab === 'messages') renderMessages();
+  if(activeTab === 'maintenance') renderMaintenance();
 }
 
 const FACEID_CRED_KEY = 'ma_mowing_faceid_cred_v1';
@@ -2204,6 +2370,7 @@ function submitPin(){
       if(activeTab === 'receipts') renderReceipts();
       if(activeTab === 'customers') renderCustomers();
       if(activeTab === 'messages') renderMessages();
+    if(activeTab === 'maintenance') renderMaintenance();
       showToast('Unlocked 🔓');
       notifyLogin();
       maybeOfferFaceID();
