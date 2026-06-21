@@ -514,6 +514,11 @@
     display:flex;justify-content:space-between;font-size:18px;font-weight:800;
     margin-top:10px;padding-top:10px;border-top:2px solid var(--green-700);color:var(--green-800);
   }
+  .quote-share-row{display:flex;gap:8px;margin-top:14px;}
+  .quote-share-row .pill-btn{flex:1;font-size:12px;padding:10px 6px;}
+  .public-quote-wrap{
+    max-width:420px;margin:40px auto;padding:0 16px;
+  }
   .receipt-field-label{
     display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
     color:var(--gold-300);font-weight:700;margin:10px 0 5px;
@@ -551,6 +556,11 @@
 </style>
 </head>
 <body>
+<div id="publicQuoteView" style="display:none;">
+  <div class="public-quote-wrap">
+    <div class="invoice-paper" id="publicQuotePaper"></div>
+  </div>
+</div>
 <div class="wrap">
 
   <header class="app-header">
@@ -575,6 +585,7 @@
     <button class="tab-btn" id="tabCustomersBtn" onclick="switchTab('customers')">👤 Customers</button>
     <button class="tab-btn" id="tabMessagesBtn" onclick="switchTab('messages')">💬 Messages</button>
     <button class="tab-btn" id="tabMaintenanceBtn" onclick="switchTab('maintenance')">🔧 Maintenance</button>
+    <button class="tab-btn" id="tabQuotesBtn" onclick="switchTab('quotes')">📋 Quotes</button>
   </div>
 
   <div id="scheduleView">
@@ -729,6 +740,24 @@
       </div>
 
       <div id="maintenanceList"></div>
+    </div>
+  </div>
+
+  <div id="quotesView" style="display:none;">
+    <div class="section">
+      <div class="section-head">
+        <h2>📋 Quotes</h2>
+        <span class="count" id="quotesCount">0 total</span>
+      </div>
+      <p style="font-size:13px;color:rgba(251,248,238,.55);margin:-4px 0 14px;">
+        Build a quote for a new or existing customer, then send it by message, email, or QR code.
+      </p>
+
+      <div class="fab-row" id="quoteControls" style="display:none;">
+        <button class="pill-btn primary" onclick="openQuoteCreate()">＋ New Quote</button>
+      </div>
+
+      <div id="quotesList"></div>
     </div>
   </div>
 
@@ -927,6 +956,43 @@
   </div>
 </div>
 
+<div class="overlay" id="quoteCreateOverlay">
+  <div class="modal">
+    <h3>📋 New Quote</h3>
+    <label class="receipt-field-label">Customer Name</label>
+    <input type="text" id="quoteNameInput" class="receipt-input" placeholder="e.g. Jane Smith">
+    <label class="receipt-field-label">Phone</label>
+    <input type="tel" id="quotePhoneInput" class="receipt-input" placeholder="(555) 555-5555">
+    <label class="receipt-field-label">Email</label>
+    <input type="email" id="quoteEmailInput" class="receipt-input" placeholder="customer@email.com">
+    <label class="receipt-field-label">Description</label>
+    <input type="text" id="quoteDescInput" class="receipt-input" placeholder="e.g. Weekly mowing, sod install">
+    <label class="receipt-field-label">Quoted Price ($)</label>
+    <input type="number" id="quoteAmountInput" class="receipt-input" step="0.01" min="0" placeholder="0.00">
+    <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveNewQuote()">Create Quote</button>
+    <button class="modal-close" onclick="closeQuoteCreate()">Cancel</button>
+  </div>
+</div>
+
+<div class="overlay" id="quoteViewOverlay">
+  <div class="modal invoice-modal">
+    <div class="invoice-paper" id="quotePaper"></div>
+    <div class="quote-share-row">
+      <button class="pill-btn primary" onclick="sendQuoteEmail()">✉️ Email</button>
+      <button class="pill-btn primary" onclick="sendQuoteMessage()">💬 Message</button>
+      <button class="pill-btn primary" onclick="showQuoteQR()">🔗 QR Code</button>
+    </div>
+    <div id="quoteQRWrap" style="display:none;text-align:center;margin-top:14px;">
+      <img id="quoteQRImg" src="" alt="QR Code" style="width:180px;height:180px;border-radius:12px;background:#fff;padding:8px;">
+      <p style="font-size:12px;color:rgba(251,248,238,.5);margin-top:8px;">Customer scans this to view &amp; save the quote on their phone</p>
+    </div>
+    <div class="cal-actions" id="quoteDeleteWrap" style="display:none;">
+      <button class="pill-btn" onclick="deleteQuote()">🗑 Delete Quote</button>
+    </div>
+    <button class="modal-close" onclick="closeQuoteView()">Close</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -964,6 +1030,8 @@ let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber 
 let recurringClients = []; // [{ id, name, amount }]
 let messageTemplates = []; // [{ id, label, text }]
 let maintenanceTasks = []; // [{ id, name, type, intervalMiles/intervalDays, lastDoneMileage/lastDoneDate }]
+let quotes = []; // [{ id, quoteNumber, customerName, phone, email, description, amount, date }]
+let activeQuoteId = null;
 let selectedMessageId = null;
 let activeProfileClientId = null;
 let activeInvoiceId = null;
@@ -1021,6 +1089,7 @@ async function init(){
           { id: 'msg_default', label: 'Weekend Reminder', text: 'Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?' }
         ],
         maintenanceTasks: [],
+        quotes: [],
         pin: DEFAULT_PIN
       });
       return; // onSnapshot will fire again with the seeded data
@@ -1037,6 +1106,7 @@ async function init(){
     recurringClients = d.recurringClients || [];
     messageTemplates = d.messageTemplates || [];
     maintenanceTasks = d.maintenanceTasks || [];
+    quotes = d.quotes || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
     checkRecurringRevenue();
@@ -1044,6 +1114,7 @@ async function init(){
     if(activeTab === 'revenue') renderRevenue();
     if(activeTab === 'messages') renderMessages();
     if(activeTab === 'maintenance') renderMaintenance();
+  if(activeTab === 'quotes') renderQuotes();
   }, function(err){
     showToast('Connection issue — check your internet');
   });
@@ -1063,7 +1134,7 @@ async function init(){
 
 function syncMainDoc(){
   mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, quotes, pin: currentPin
   }, { merge: true });
 }
 
@@ -1098,17 +1169,20 @@ function switchTab(tab){
   document.getElementById('customersView').style.display = tab === 'customers' ? 'block' : 'none';
   document.getElementById('messagesView').style.display = tab === 'messages' ? 'block' : 'none';
   document.getElementById('maintenanceView').style.display = tab === 'maintenance' ? 'block' : 'none';
+  document.getElementById('quotesView').style.display = tab === 'quotes' ? 'block' : 'none';
   document.getElementById('tabScheduleBtn').classList.toggle('active', tab === 'schedule');
   document.getElementById('tabRevenueBtn').classList.toggle('active', tab === 'revenue');
   document.getElementById('tabReceiptsBtn').classList.toggle('active', tab === 'receipts');
   document.getElementById('tabCustomersBtn').classList.toggle('active', tab === 'customers');
   document.getElementById('tabMessagesBtn').classList.toggle('active', tab === 'messages');
   document.getElementById('tabMaintenanceBtn').classList.toggle('active', tab === 'maintenance');
+  document.getElementById('tabQuotesBtn').classList.toggle('active', tab === 'quotes');
   if(tab === 'revenue') renderRevenue();
   if(tab === 'receipts') renderReceipts();
   if(tab === 'customers') renderCustomers();
   if(tab === 'messages') renderMessages();
   if(tab === 'maintenance') renderMaintenance();
+  if(tab === 'quotes') renderQuotes();
 }
 
 function renderMessages(){
@@ -2296,6 +2370,145 @@ function deleteInvoice(){
   showToast('Invoice deleted');
 }
 
+/* ---- Quotes ---- */
+function openQuoteCreate(){
+  if(!canEdit()) return;
+  document.getElementById('quoteNameInput').value = '';
+  document.getElementById('quotePhoneInput').value = '';
+  document.getElementById('quoteEmailInput').value = '';
+  document.getElementById('quoteDescInput').value = '';
+  document.getElementById('quoteAmountInput').value = '';
+  document.getElementById('quoteCreateOverlay').classList.add('show');
+}
+
+function closeQuoteCreate(){
+  document.getElementById('quoteCreateOverlay').classList.remove('show');
+}
+
+function saveNewQuote(){
+  if(!canEdit()) return;
+  const customerName = document.getElementById('quoteNameInput').value.trim();
+  const phone = document.getElementById('quotePhoneInput').value.trim();
+  const email = document.getElementById('quoteEmailInput').value.trim();
+  const description = document.getElementById('quoteDescInput').value.trim();
+  const amount = parseFloat(document.getElementById('quoteAmountInput').value);
+  if(!customerName || !description || isNaN(amount) || amount < 0){
+    showToast('Enter a valid name, description, and price'); return;
+  }
+  const quoteNumber = 2000 + quotes.length + 1;
+  quotes.push({
+    id: 'q' + Date.now(),
+    quoteNumber, customerName, phone, email, description, amount,
+    date: new Date().toISOString().slice(0,10)
+  });
+  syncMainDoc();
+  closeQuoteCreate();
+  showToast('Quote created 📋');
+}
+
+function renderQuotes(){
+  document.getElementById('quoteControls').style.display = canEdit() ? 'flex' : 'none';
+  document.getElementById('quotesCount').textContent = quotes.length + ' total';
+  const list = document.getElementById('quotesList');
+  if(quotes.length === 0){
+    list.innerHTML = `<div class="empty-state">No quotes yet.${canEdit() ? '<br>Tap "+ New Quote" to create one.' : ''}</div>`;
+    return;
+  }
+  const sorted = [...quotes].sort((a,b) => b.date.localeCompare(a.date));
+  list.innerHTML = sorted.map(q => `
+    <div class="profile-invoice-row" onclick="openQuoteView('${q.id}')">
+      <div>
+        <div class="pi-desc">${escapeHtml(q.customerName)} — ${escapeHtml(q.description)}</div>
+        <div class="pi-date">${formatDateShort(q.date)} · #${q.quoteNumber}</div>
+      </div>
+      <div class="pi-amount">$${Number(q.amount).toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+function buildQuotePaperHTML(q){
+  return `
+    <img class="inv-logo" src="logo.png" alt="M&A Mowing">
+    <div class="inv-business">M&amp;A Mowing</div>
+    <div class="inv-sub">Quote #${q.quoteNumber}</div>
+    <div class="inv-row"><span>For</span><span>${escapeHtml(q.customerName)}</span></div>
+    ${q.phone ? `<div class="inv-row"><span>Phone</span><span>${escapeHtml(q.phone)}</span></div>` : ''}
+    ${q.email ? `<div class="inv-row"><span>Email</span><span>${escapeHtml(q.email)}</span></div>` : ''}
+    <div class="inv-row"><span>Date</span><span>${formatDateShort(q.date)}</span></div>
+    <div class="inv-divider"></div>
+    <div class="inv-desc-line"><span>${escapeHtml(q.description)}</span><span>$${Number(q.amount).toLocaleString()}</span></div>
+    <div class="inv-total-row"><span>Quoted Price</span><span>$${Number(q.amount).toLocaleString()}</span></div>
+  `;
+}
+
+function buildQuoteShareURL(q){
+  const payload = {
+    n: q.quoteNumber, name: q.customerName, desc: q.description,
+    amount: q.amount, date: q.date
+  };
+  const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
+  return location.origin + location.pathname + '?quote=' + encoded;
+}
+
+function openQuoteView(id){
+  const q = quotes.find(x => x.id === id);
+  if(!q) return;
+  activeQuoteId = id;
+  document.getElementById('quotePaper').innerHTML = buildQuotePaperHTML(q);
+  document.getElementById('quoteQRWrap').style.display = 'none';
+  document.getElementById('quoteDeleteWrap').style.display = canEdit() ? 'block' : 'none';
+  document.getElementById('quoteViewOverlay').classList.add('show');
+}
+
+function closeQuoteView(){
+  document.getElementById('quoteViewOverlay').classList.remove('show');
+  document.getElementById('quoteQRWrap').style.display = 'none';
+  activeQuoteId = null;
+}
+
+function sendQuoteEmail(){
+  const q = quotes.find(x => x.id === activeQuoteId);
+  if(!q) return;
+  if(!q.email){ showToast('No email saved for this quote'); return; }
+  const subject = encodeURIComponent('Quote #' + q.quoteNumber + ' from M&A Mowing');
+  const body = encodeURIComponent(
+    `Hi ${q.customerName},\n\nHere's your quote from M&A Mowing:\n\n` +
+    `Quote #: ${q.quoteNumber}\nDate: ${formatDateShort(q.date)}\n` +
+    `Description: ${q.description}\nQuoted Price: $${Number(q.amount).toLocaleString()}\n\n` +
+    `View it anytime here: ${buildQuoteShareURL(q)}\n\nThank you!\nM&A Mowing`
+  );
+  window.location.href = `mailto:${q.email}?subject=${subject}&body=${body}`;
+}
+
+function sendQuoteMessage(){
+  const q = quotes.find(x => x.id === activeQuoteId);
+  if(!q) return;
+  if(!q.phone){ showToast('No phone number saved for this quote'); return; }
+  const digits = q.phone.replace(/[^\d+]/g, '');
+  const message = encodeURIComponent(
+    `Hi ${q.customerName}, here's your quote from M&A Mowing for ${q.description}: $${Number(q.amount).toLocaleString()}. View it here: ${buildQuoteShareURL(q)}`
+  );
+  window.location.href = `sms:${digits}?body=${message}`;
+}
+
+function showQuoteQR(){
+  const q = quotes.find(x => x.id === activeQuoteId);
+  if(!q) return;
+  const url = buildQuoteShareURL(q);
+  document.getElementById('quoteQRImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
+  document.getElementById('quoteQRWrap').style.display = 'block';
+}
+
+function deleteQuote(){
+  if(!canEdit() || !activeQuoteId) return;
+  if(!confirm('Delete this quote?')) return;
+  quotes = quotes.filter(q => q.id !== activeQuoteId);
+  syncMainDoc();
+  closeQuoteView();
+  renderQuotes();
+  showToast('Quote deleted');
+}
+
 function addToWeekend(id){
   if(!canEdit()) return;
   if(!weekendIds.includes(id)) weekendIds.push(id);
@@ -2407,6 +2620,7 @@ function rerenderActiveTab(){
   if(activeTab === 'customers') renderCustomers();
   if(activeTab === 'messages') renderMessages();
   if(activeTab === 'maintenance') renderMaintenance();
+  if(activeTab === 'quotes') renderQuotes();
 }
 
 const FACEID_CRED_KEY = 'ma_mowing_faceid_cred_v1';
@@ -2589,6 +2803,7 @@ function submitPin(){
       if(activeTab === 'customers') renderCustomers();
       if(activeTab === 'messages') renderMessages();
     if(activeTab === 'maintenance') renderMaintenance();
+  if(activeTab === 'quotes') renderQuotes();
       showToast('Unlocked 🔓');
       notifyLogin();
       maybeOfferFaceID();
@@ -2641,7 +2856,32 @@ function showToast(msg){
   toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
 }
 
-init();
+function tryRenderPublicQuote(){
+  const encoded = new URLSearchParams(location.search).get('quote');
+  if(!encoded) return false;
+  try{
+    const payload = JSON.parse(decodeURIComponent(atob(encoded)));
+    document.getElementById('publicQuotePaper').innerHTML = `
+      <img class="inv-logo" src="logo.png" alt="M&A Mowing">
+      <div class="inv-business">M&amp;A Mowing</div>
+      <div class="inv-sub">Quote #${escapeHtml(String(payload.n))}</div>
+      <div class="inv-row"><span>For</span><span>${escapeHtml(payload.name)}</span></div>
+      <div class="inv-row"><span>Date</span><span>${formatDateShort(payload.date)}</span></div>
+      <div class="inv-divider"></div>
+      <div class="inv-desc-line"><span>${escapeHtml(payload.desc)}</span><span>$${Number(payload.amount).toLocaleString()}</span></div>
+      <div class="inv-total-row"><span>Quoted Price</span><span>$${Number(payload.amount).toLocaleString()}</span></div>
+    `;
+    document.getElementById('publicQuoteView').style.display = 'block';
+    document.querySelector('.wrap').style.display = 'none';
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+if(!tryRenderPublicQuote()){
+  init();
+}
 </script>
 </body>
 </html>
