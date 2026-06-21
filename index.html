@@ -152,28 +152,36 @@
     border:1.5px dashed rgba(255,255,255,.15);
     color:rgba(251,248,238,.55);font-size:14px;
   }
-  .day-header{
-    display:flex;align-items:baseline;gap:10px;
-    margin:18px 0 8px;padding:0 2px;
+  .day-block{
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(126,152,171,.15);
+    border-radius:18px;
+    padding:14px 14px 4px;
+    margin-bottom:16px;
     animation:slideUp .3s ease both;
   }
-  .day-header:first-child{margin-top:0;}
+  .day-block.past{opacity:.6;}
+  .day-header{
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    margin:0 0 12px;padding:0 2px;
+  }
   .day-header .day-weekday{
-    font-size:15px;font-weight:800;letter-spacing:.3px;
+    font-size:16px;font-weight:800;letter-spacing:.3px;
     color:var(--gold-300);
   }
   .day-header .day-date{
     font-size:12px;font-weight:700;color:rgba(251,248,238,.45);
   }
+  .day-header .day-count{
+    font-size:11px;font-weight:700;color:rgba(251,248,238,.4);
+  }
   .day-header .day-total{
     margin-left:auto;font-size:13px;font-weight:800;
-    color:var(--cream);background:rgba(126,152,171,.12);
-    padding:3px 10px;border-radius:999px;
+    color:var(--cream);background:rgba(126,152,171,.18);
+    padding:4px 12px;border-radius:999px;
   }
   .day-header.unscheduled .day-weekday{color:rgba(251,248,238,.4);}
   .day-group{
-    border-left:2px solid rgba(126,152,171,.18);
-    padding-left:10px;margin-left:2px;
   }
   .swipe-wrap{position:relative;}
   .swipe-bg{
@@ -1456,9 +1464,20 @@ function renderTotals(){
 function formatDayHeader(dateStr){
   const [y,m,d] = dateStr.split('-').map(Number);
   const dt = new Date(y, m-1, d);
-  const weekday = dt.toLocaleDateString('en-US', { weekday:'long' });
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0,10);
+
+  let weekday;
+  if(dateStr === todayStr) weekday = 'Today';
+  else if(dateStr === tomorrowStr) weekday = 'Tomorrow';
+  else weekday = dt.toLocaleDateString('en-US', { weekday:'long' });
+
   const dateLabel = dt.toLocaleDateString('en-US', { month:'short', day:'numeric' });
-  return { weekday, dateLabel };
+  const isPast = dateStr < todayStr;
+  return { weekday, dateLabel, isPast };
 }
 
 function renderWeekend(){
@@ -1485,14 +1504,22 @@ function renderWeekend(){
 
   list.innerHTML = groups.map(group => {
     const isUnscheduled = group.dateKey === 'unscheduled';
+    const jobCount = group.clients.length;
+    const jobWord = jobCount === 1 ? 'job' : 'jobs';
+    let isPast = false;
     const headerHtml = isUnscheduled
-      ? `<div class="day-header unscheduled"><span class="day-weekday">No Date Set</span></div>`
+      ? `<div class="day-header unscheduled">
+          <span class="day-weekday">No Date Set</span>
+          <span class="day-count">${jobCount} ${jobWord}</span>
+        </div>`
       : (() => {
-          const { weekday, dateLabel } = formatDayHeader(group.dateKey);
+          const { weekday, dateLabel, isPast: past } = formatDayHeader(group.dateKey);
+          isPast = past;
           const groupTotal = group.clients.reduce((s,c) => s + Number(c.price), 0);
           return `<div class="day-header">
             <span class="day-weekday">${weekday}</span>
             <span class="day-date">${dateLabel}</span>
+            <span class="day-count">${jobCount} ${jobWord}</span>
             <span class="day-total">$${groupTotal.toLocaleString()}</span>
           </div>`;
         })();
@@ -1524,7 +1551,7 @@ function renderWeekend(){
     `;
     }).join('');
 
-    return `${headerHtml}<div class="day-group" data-datekey="${group.dateKey}">${cardsHtml}</div>`;
+    return `<div class="day-block ${isPast ? 'past' : ''}">${headerHtml}<div class="day-group" data-datekey="${group.dateKey}">${cardsHtml}</div></div>`;
   }).join('');
 
   attachSwipeHandlers();
