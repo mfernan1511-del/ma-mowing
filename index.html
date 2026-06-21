@@ -705,6 +705,9 @@
         <h2>👤 Customer Profiles</h2>
         <span class="count" id="customersCount">0 total</span>
       </div>
+      <div class="fab-row">
+        <button class="pill-btn primary" onclick="openServiceAreaMap()">🗺 View Service Area Map</button>
+      </div>
       <div id="customersList"></div>
     </div>
   </div>
@@ -1809,18 +1812,9 @@ async function geocodeAddress(address){
   return null;
 }
 
-async function openRouteMap(dateKey){
-  const dayClients = weekendIds
-    .map(id => clients.find(c => c.id === id))
-    .filter(c => c && (weekendDates[c.id] || 'unscheduled') === dateKey);
-
-  document.getElementById('routeMapTitle').textContent = '🗺 Route Map';
-  document.getElementById('routeMapSub').textContent = dateKey === 'unscheduled' ? 'No date set' : formatDateShort(dateKey);
-  document.getElementById('routeMapMissing').textContent = '';
-  document.getElementById('routeMapOverlay').classList.add('show');
-
-  const withAddress = dayClients.filter(c => c.address);
-  const missing = dayClients.filter(c => !c.address);
+async function plotClientsOnMap(clientList, drawRoute){
+  const withAddress = clientList.filter(c => c.address);
+  const missing = clientList.filter(c => !c.address);
   if(missing.length){
     document.getElementById('routeMapMissing').textContent =
       'No address saved for: ' + missing.map(c => c.name).join(', ') + ' — add one in their Customer Profile.';
@@ -1828,7 +1822,7 @@ async function openRouteMap(dateKey){
 
   if(withAddress.length === 0){
     document.getElementById('routeMapContainer').innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(251,248,238,.5);font-size:13px;padding:20px;text-align:center;">No saved addresses for this day yet.</div>';
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(251,248,238,.5);font-size:13px;padding:20px;text-align:center;">No saved addresses yet.</div>';
     return;
   }
 
@@ -1859,7 +1853,7 @@ async function openRouteMap(dateKey){
 
   document.getElementById('routeMapContainer').innerHTML = '';
   if(routeMapInstance){ routeMapInstance.remove(); routeMapInstance = null; }
-  routeMapInstance = L.map('routeMapContainer').setView([points[0].lat, points[0].lng], 12);
+  routeMapInstance = L.map('routeMapContainer').setView([points[0].lat, points[0].lng], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(routeMapInstance);
@@ -1867,12 +1861,34 @@ async function openRouteMap(dateKey){
   const latLngs = points.map(p => [p.lat, p.lng]);
   points.forEach((p, i) => {
     L.marker([p.lat, p.lng]).addTo(routeMapInstance)
-      .bindPopup(`<b>${i+1}. ${escapeHtml(p.client.name)}</b><br>$${Number(p.client.price).toLocaleString()}`);
+      .bindPopup(`<b>${drawRoute ? (i+1) + '. ' : ''}${escapeHtml(p.client.name)}</b><br>$${Number(p.client.price).toLocaleString()}`);
   });
   if(latLngs.length > 1){
-    L.polyline(latLngs, { color: '#7e98ab', weight: 3, dashArray: '6,8' }).addTo(routeMapInstance);
+    if(drawRoute) L.polyline(latLngs, { color: '#7e98ab', weight: 3, dashArray: '6,8' }).addTo(routeMapInstance);
     routeMapInstance.fitBounds(latLngs, { padding: [30,30] });
   }
+}
+
+async function openRouteMap(dateKey){
+  const dayClients = weekendIds
+    .map(id => clients.find(c => c.id === id))
+    .filter(c => c && (weekendDates[c.id] || 'unscheduled') === dateKey);
+
+  document.getElementById('routeMapTitle').textContent = '🗺 Route Map';
+  document.getElementById('routeMapSub').textContent = dateKey === 'unscheduled' ? 'No date set' : formatDateShort(dateKey);
+  document.getElementById('routeMapMissing').textContent = '';
+  document.getElementById('routeMapOverlay').classList.add('show');
+
+  plotClientsOnMap(dayClients, true);
+}
+
+async function openServiceAreaMap(){
+  document.getElementById('routeMapTitle').textContent = '🗺 Service Area';
+  document.getElementById('routeMapSub').textContent = clients.length + ' total clients';
+  document.getElementById('routeMapMissing').textContent = '';
+  document.getElementById('routeMapOverlay').classList.add('show');
+
+  plotClientsOnMap(clients, false);
 }
 
 function closeRouteMap(){
