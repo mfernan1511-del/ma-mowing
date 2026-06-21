@@ -420,6 +420,11 @@
     border:1px solid rgba(255,255,255,.06);
   }
   .tabs.tabs-secondary{margin-bottom:18px;}
+  .tab-btn-square{
+    flex:0 0 auto;width:42px;height:42px;
+    font-size:18px;padding:0;
+    display:flex;align-items:center;justify-content:center;
+  }
   .message-preview{
     background:rgba(126,152,171,.08);border:1px solid rgba(126,152,171,.25);
     border-radius:14px;padding:14px 16px;font-size:13px;font-style:italic;
@@ -584,8 +589,8 @@
   <div class="tabs tabs-secondary">
     <button class="tab-btn" id="tabCustomersBtn" onclick="switchTab('customers')">👤 Customers</button>
     <button class="tab-btn" id="tabMessagesBtn" onclick="switchTab('messages')">💬 Messages</button>
-    <button class="tab-btn" id="tabMaintenanceBtn" onclick="switchTab('maintenance')">🔧 Maintenance</button>
-    <button class="tab-btn" id="tabQuotesBtn" onclick="switchTab('quotes')">📋 Quotes</button>
+    <button class="tab-btn tab-btn-square" id="tabMaintenanceBtn" onclick="switchTab('maintenance')" title="Maintenance">🔧</button>
+    <button class="tab-btn tab-btn-square" id="tabQuotesBtn" onclick="switchTab('quotes')" title="Quotes">📋</button>
   </div>
 
   <div id="scheduleView">
