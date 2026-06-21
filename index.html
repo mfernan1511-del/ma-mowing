@@ -327,6 +327,14 @@
     font-size:14px;font-weight:700;color:var(--gold-300);
     margin:0 0 14px;
   }
+  .faceid-btn{
+    width:100%;border:1px solid rgba(126,152,171,.4);
+    background:rgba(126,152,171,.12);color:var(--gold-300);
+    border-radius:14px;padding:12px;font-size:14px;font-weight:700;
+    cursor:pointer;margin-bottom:16px;
+    transition:transform .15s ease, background .2s ease;
+  }
+  .faceid-btn:active{transform:scale(.96);background:rgba(126,152,171,.22);}
   .pin-dots{display:flex;gap:12px;justify-content:center;margin:18px 0;}
   .pin-dot{
     width:16px;height:16px;border-radius:50%;
@@ -694,6 +702,7 @@
     <p id="pinWelcome" class="pin-welcome">Welcome Marco, Adolfo &amp; Lolo!</p>
     <h3 id="pinTitle">Enter PIN</h3>
     <p id="pinSub">Boss access only</p>
+    <button class="faceid-btn" id="faceIdBtn" onclick="unlockWithFaceID()" style="display:none;">🆔 Use Face ID</button>
     <div class="pin-dots" id="pinDots">
       <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
     </div>
@@ -1989,6 +1998,76 @@ function rerenderActiveTab(){
   if(activeTab === 'messages') renderMessages();
 }
 
+const FACEID_CRED_KEY = 'ma_mowing_faceid_cred_v1';
+
+function bufToBase64(buf){
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function base64ToBuf(b64){
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+function randomBytes(len){
+  return crypto.getRandomValues(new Uint8Array(len));
+}
+
+async function isFaceIdAvailable(){
+  if(!window.PublicKeyCredential || !PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) return false;
+  try{ return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+  catch(e){ return false; }
+}
+
+async function registerFaceID(){
+  try{
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge: randomBytes(32),
+        rp: { name: 'M&A Mowing' },
+        user: { id: randomBytes(16), name: 'crew', displayName: 'M&A Mowing Crew' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000
+      }
+    });
+    localStorage.setItem(FACEID_CRED_KEY, bufToBase64(credential.rawId));
+    showToast('Face ID enabled on this device 🆔');
+  }catch(e){
+    showToast('Could not set up Face ID on this device');
+  }
+}
+
+async function unlockWithFaceID(){
+  const storedId = localStorage.getItem(FACEID_CRED_KEY);
+  if(!storedId) return;
+  try{
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: randomBytes(32),
+        allowCredentials: [{ id: base64ToBuf(storedId), type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    unlocked = true;
+    editMode = false;
+    sessionStorage.setItem(UNLOCK_KEY, 'true');
+    updateLockUI();
+    hideGate();
+    rerenderActiveTab();
+    showToast('Unlocked with Face ID 🆔');
+  }catch(e){
+    showToast('Face ID failed — enter your PIN instead');
+  }
+}
+
+async function maybeOfferFaceID(){
+  if(localStorage.getItem(FACEID_CRED_KEY)) return;
+  const available = await isFaceIdAvailable();
+  if(!available) return;
+  if(confirm('Enable Face ID for faster access on this device next time?')){
+    registerFaceID();
+  }
+}
+
 function showGate(){
   document.querySelector('.wrap').style.display = 'none';
   openPinModal('unlock', false);
@@ -2032,6 +2111,7 @@ function openPinModal(mode, cancelable){
   document.getElementById('pinTitle').textContent = mode === 'confirm' ? 'Confirm New PIN' : (mode === 'setup' ? 'Set New PIN' : 'Enter PIN to View');
   document.getElementById('pinSub').textContent = mode === 'unlock' ? 'M&A Mowing crew access only' : 'Choose 4 digits';
   document.getElementById('pinCancelBtn').style.display = pinCancelable ? 'inline-block' : 'none';
+  document.getElementById('faceIdBtn').style.display = (mode === 'unlock' && localStorage.getItem(FACEID_CRED_KEY)) ? 'block' : 'none';
   updatePinDots();
   document.getElementById('pinOverlay').classList.add('show');
 }
@@ -2083,6 +2163,7 @@ function submitPin(){
       if(activeTab === 'customers') renderCustomers();
       if(activeTab === 'messages') renderMessages();
       showToast('Unlocked 🔓');
+      maybeOfferFaceID();
     } else {
       shakeDots();
       setTimeout(()=>{ pinEntry=''; updatePinDots(); }, 350);
