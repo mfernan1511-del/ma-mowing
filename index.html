@@ -1999,6 +1999,14 @@ function rerenderActiveTab(){
 }
 
 const FACEID_CRED_KEY = 'ma_mowing_faceid_cred_v1';
+const NTFY_TOPIC = 'ma-mowing-alerts-x7k2p9qf4d';
+
+function notifyLogin(){
+  fetch('https://ntfy.sh/' + NTFY_TOPIC, {
+    method: 'POST',
+    body: 'Someone just unlocked the M&A Mowing app at ' + new Date().toLocaleString('en-US', { weekday:'short', hour:'numeric', minute:'2-digit' })
+  }).catch(function(){});
+}
 
 function bufToBase64(buf){
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
@@ -2053,6 +2061,7 @@ async function unlockWithFaceID(){
     updateLockUI();
     hideGate();
     rerenderActiveTab();
+    notifyLogin();
     showToast('Unlocked with Face ID 🆔');
   }catch(e){
     showToast('Face ID failed — enter your PIN instead');
@@ -2163,6 +2172,7 @@ function submitPin(){
       if(activeTab === 'customers') renderCustomers();
       if(activeTab === 'messages') renderMessages();
       showToast('Unlocked 🔓');
+      notifyLogin();
       maybeOfferFaceID();
     } else {
       shakeDots();
