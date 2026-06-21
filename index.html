@@ -489,6 +489,17 @@
   .profile-invoice-row .pi-date{font-size:11px;color:#5a6670;}
   .profile-invoice-row .pi-amount{font-weight:800;color:#4d6675;}
   .invoice-modal{max-width:420px;}
+  .route-map-modal{max-width:480px;width:92vw;}
+  #routeMapContainer{
+    width:100%;height:340px;border-radius:14px;overflow:hidden;
+    background:#1a2226;
+  }
+  .day-header .route-btn{
+    font-size:11px;font-weight:700;color:var(--gold-300);
+    background:rgba(126,152,171,.15);border:1px solid rgba(126,152,171,.35);
+    border-radius:999px;padding:4px 10px;cursor:pointer;
+  }
+  .route-btn:active{transform:scale(.94);}
   .invoice-paper{
     background:#fff;color:#122029;border-radius:14px;padding:24px 20px;
     text-align:left;
@@ -805,7 +816,28 @@
       <div id="profileInvoiceList"></div>
     </div>
 
+    <div class="section-head" style="margin-top:18px;">
+      <h2 style="font-size:14px;">📸 Job Photos</h2>
+    </div>
+    <div class="fab-row" id="jobPhotoControls" style="display:none;margin-bottom:10px;">
+      <button class="pill-btn primary" onclick="triggerJobPhotoCapture('before')">📷 Before</button>
+      <button class="pill-btn primary" onclick="triggerJobPhotoCapture('after')">📷 After</button>
+    </div>
+    <input type="file" id="jobPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="handleJobPhotoFile(event)">
+    <div class="receipts-grid" id="profilePhotosList"></div>
+
     <button class="modal-close" onclick="closeProfile()">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="jobPhotoLightboxOverlay">
+  <div class="modal lightbox-modal">
+    <h3 id="jobPhotoLightboxTitle">Photo</h3>
+    <img class="receipt-lightbox-img" id="jobPhotoLightboxImg" src="" alt="Job photo">
+    <div class="cal-actions" id="jobPhotoDeleteWrap" style="display:none;">
+      <button class="pill-btn" onclick="deleteJobPhoto()">🗑 Delete Photo</button>
+    </div>
+    <button class="modal-close" onclick="closeJobPhotoLightbox()">Close</button>
   </div>
 </div>
 
@@ -874,6 +906,16 @@
   </div>
 </div>
 
+<div class="overlay" id="routeMapOverlay">
+  <div class="modal route-map-modal">
+    <h3 id="routeMapTitle">Route Map</h3>
+    <p id="routeMapSub" style="margin-top:-6px;"></p>
+    <div id="routeMapContainer"></div>
+    <div id="routeMapMissing" style="font-size:12px;color:rgba(251,248,238,.5);margin-top:10px;"></div>
+    <button class="modal-close" onclick="closeRouteMap()">Close</button>
+  </div>
+</div>
+
 <div class="overlay" id="invoiceViewOverlay">
   <div class="modal invoice-modal">
     <div class="invoice-paper" id="invoicePaper"></div>
@@ -891,6 +933,8 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const UNLOCK_KEY = 'ma_mowing_unlocked_session';
 const DEFAULT_PIN = '5070';
@@ -907,6 +951,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const mainDocRef = db.collection('appData').doc('main');
 const receiptsCollRef = db.collection('receipts');
+const jobPhotosCollRef = db.collection('jobPhotos');
 
 let clients = [];
 let weekendIds = [];
@@ -923,6 +968,9 @@ let selectedMessageId = null;
 let activeProfileClientId = null;
 let activeInvoiceId = null;
 let receipts = []; // [{ id, dataURL, addedDate, receiptDate, total }]
+let jobPhotos = []; // [{ id, clientId, type: 'before'|'after', dataURL, date }]
+let pendingJobPhotoType = 'before';
+let activeJobPhotoId = null;
 let currentPin = DEFAULT_PIN;
 let unlocked = false;
 let editMode = false;
@@ -1004,6 +1052,12 @@ async function init(){
     receipts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a,b) => (b.addedDate || '').localeCompare(a.addedDate || ''));
     if(activeTab === 'receipts') renderReceipts();
+  });
+
+  jobPhotosCollRef.onSnapshot(function(snap){
+    jobPhotos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+    if(activeProfileClientId) renderProfilePhotos(activeProfileClientId);
   });
 }
 
@@ -1605,6 +1659,88 @@ function renderMaintenance(){
   `).join('');
 }
 
+let routeMapInstance = null;
+
+async function geocodeAddress(address){
+  try{
+    const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address));
+    const data = await res.json();
+    if(data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  }catch(e){ /* ignore, treat as unresolved */ }
+  return null;
+}
+
+async function openRouteMap(dateKey){
+  const dayClients = weekendIds
+    .map(id => clients.find(c => c.id === id))
+    .filter(c => c && (weekendDates[c.id] || 'unscheduled') === dateKey);
+
+  document.getElementById('routeMapTitle').textContent = '🗺 Route Map';
+  document.getElementById('routeMapSub').textContent = dateKey === 'unscheduled' ? 'No date set' : formatDateShort(dateKey);
+  document.getElementById('routeMapMissing').textContent = '';
+  document.getElementById('routeMapOverlay').classList.add('show');
+
+  const withAddress = dayClients.filter(c => c.address);
+  const missing = dayClients.filter(c => !c.address);
+  if(missing.length){
+    document.getElementById('routeMapMissing').textContent =
+      'No address saved for: ' + missing.map(c => c.name).join(', ') + ' — add one in their Customer Profile.';
+  }
+
+  if(withAddress.length === 0){
+    document.getElementById('routeMapContainer').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(251,248,238,.5);font-size:13px;padding:20px;text-align:center;">No saved addresses for this day yet.</div>';
+    return;
+  }
+
+  document.getElementById('routeMapContainer').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(251,248,238,.5);font-size:13px;">Loading map…</div>';
+
+  const points = [];
+  let changedAnyClient = false;
+  for(const c of withAddress){
+    if(c.geo && c.geo.lat && c.geo.lng){
+      points.push({ client: c, lat: c.geo.lat, lng: c.geo.lng });
+      continue;
+    }
+    const geo = await geocodeAddress(c.address);
+    if(geo){
+      c.geo = geo;
+      changedAnyClient = true;
+      points.push({ client: c, lat: geo.lat, lng: geo.lng });
+    }
+    await new Promise(r => setTimeout(r, 1000)); // respect Nominatim's 1 req/sec usage policy
+  }
+  if(changedAnyClient) syncMainDoc();
+
+  if(points.length === 0){
+    document.getElementById('routeMapContainer').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(251,248,238,.5);font-size:13px;padding:20px;text-align:center;">Could not locate any of these addresses on the map.</div>';
+    return;
+  }
+
+  document.getElementById('routeMapContainer').innerHTML = '';
+  if(routeMapInstance){ routeMapInstance.remove(); routeMapInstance = null; }
+  routeMapInstance = L.map('routeMapContainer').setView([points[0].lat, points[0].lng], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(routeMapInstance);
+
+  const latLngs = points.map(p => [p.lat, p.lng]);
+  points.forEach((p, i) => {
+    L.marker([p.lat, p.lng]).addTo(routeMapInstance)
+      .bindPopup(`<b>${i+1}. ${escapeHtml(p.client.name)}</b><br>$${Number(p.client.price).toLocaleString()}`);
+  });
+  if(latLngs.length > 1){
+    L.polyline(latLngs, { color: '#7e98ab', weight: 3, dashArray: '6,8' }).addTo(routeMapInstance);
+    routeMapInstance.fitBounds(latLngs, { padding: [30,30] });
+  }
+}
+
+function closeRouteMap(){
+  document.getElementById('routeMapOverlay').classList.remove('show');
+  if(routeMapInstance){ routeMapInstance.remove(); routeMapInstance = null; }
+}
+
 function render(){
   renderTotals();
   renderWeekend();
@@ -1685,6 +1821,7 @@ function renderWeekend(){
             <span class="day-weekday">${weekday}</span>
             <span class="day-date">${dateLabel}</span>
             <span class="day-count">${jobCount} ${jobWord}</span>
+            <button class="route-btn" onclick="openRouteMap('${group.dateKey}')">🗺 Route</button>
             <span class="day-total">$${groupTotal.toLocaleString()}</span>
           </div>`;
         })();
@@ -1915,6 +2052,7 @@ function openProfile(id){
   activeProfileClientId = id;
   document.getElementById('profileName').textContent = c.name;
   document.getElementById('profileInvoicesSection').style.display = crewMode ? 'none' : 'block';
+  document.getElementById('jobPhotoControls').style.display = canEdit() ? 'flex' : 'none';
 
   if(canEdit()){
     document.getElementById('profileEditFields').style.display = 'block';
@@ -1940,6 +2078,7 @@ function openProfile(id){
   }
 
   renderProfileInvoices(id);
+  renderProfilePhotos(id);
   document.getElementById('profileOverlay').classList.add('show');
 }
 
@@ -1980,6 +2119,85 @@ function renderProfileInvoices(clientId){
       <div class="pi-amount">$${Number(inv.amount).toLocaleString()}</div>
     </div>
   `).join('');
+}
+
+/* ---- Job Photos ---- */
+function triggerJobPhotoCapture(type){
+  if(!canEdit()) return;
+  pendingJobPhotoType = type;
+  document.getElementById('jobPhotoInput').click();
+}
+
+function handleJobPhotoFile(event){
+  const file = event.target.files[0];
+  event.target.value = '';
+  if(!file || !activeProfileClientId) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      const maxDim = 1000;
+      let { width, height } = img;
+      if(width > height && width > maxDim){ height = height * (maxDim/width); width = maxDim; }
+      else if(height > maxDim){ width = width * (maxDim/height); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const dataURL = canvas.toDataURL('image/jpeg', 0.7);
+      const newPhoto = {
+        id: 'jp' + Date.now(),
+        clientId: activeProfileClientId,
+        type: pendingJobPhotoType,
+        dataURL,
+        date: new Date().toISOString().slice(0,10)
+      };
+      jobPhotosCollRef.doc(newPhoto.id).set(newPhoto);
+      showToast((pendingJobPhotoType === 'before' ? 'Before' : 'After') + ' photo saved 📸');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderProfilePhotos(clientId){
+  const list = document.getElementById('profilePhotosList');
+  const clientPhotos = jobPhotos.filter(p => p.clientId === clientId);
+  if(clientPhotos.length === 0){
+    list.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">No job photos yet.</div>`;
+    return;
+  }
+  list.innerHTML = clientPhotos.map(p => `
+    <div class="receipt-card" onclick="openJobPhotoLightbox('${p.id}')">
+      <div class="receipt-thumb"><img src="${p.dataURL}" alt="${p.type}"></div>
+      <div class="receipt-info">
+        <div class="receipt-total">${p.type === 'before' ? 'Before' : 'After'}</div>
+        <div class="receipt-sub">${formatDateShort(p.date)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openJobPhotoLightbox(id){
+  const p = jobPhotos.find(x => x.id === id);
+  if(!p) return;
+  activeJobPhotoId = id;
+  document.getElementById('jobPhotoLightboxTitle').textContent = (p.type === 'before' ? 'Before' : 'After') + ' — ' + formatDateShort(p.date);
+  document.getElementById('jobPhotoLightboxImg').src = p.dataURL;
+  document.getElementById('jobPhotoDeleteWrap').style.display = canEdit() ? 'block' : 'none';
+  document.getElementById('jobPhotoLightboxOverlay').classList.add('show');
+}
+
+function closeJobPhotoLightbox(){
+  document.getElementById('jobPhotoLightboxOverlay').classList.remove('show');
+  activeJobPhotoId = null;
+}
+
+function deleteJobPhoto(){
+  if(!canEdit() || !activeJobPhotoId) return;
+  if(!confirm('Delete this photo?')) return;
+  jobPhotosCollRef.doc(activeJobPhotoId).delete();
+  closeJobPhotoLightbox();
+  showToast('Photo deleted');
 }
 
 /* ---- Invoices ---- */
