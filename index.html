@@ -242,6 +242,9 @@
     cursor:grab;padding:4px 8px 4px 0;touch-action:none;
     flex-shrink:0;user-select:none;
   }
+  .recipient-checkbox{
+    width:20px;height:20px;flex-shrink:0;cursor:pointer;accent-color:#4d6675;
+  }
   .sortable-ghost{opacity:.35;}
   .sortable-chosen{background:rgba(126,152,171,.15) !important;border-color:rgba(126,152,171,.5) !important;}
   .icon-btn[disabled]{opacity:.25;pointer-events:none;}
@@ -724,8 +727,10 @@
       <div id="messageRecipientsWrap" style="display:none;">
         <div class="section-head" style="margin-top:18px;">
           <h2 style="font-size:14px;">Send To</h2>
+          <span class="count" id="recipientSelectedCount">0 selected</span>
         </div>
         <div id="messagesList"></div>
+        <button class="pill-btn primary" id="sendSelectedBtn" style="width:100%;margin-top:10px;" onclick="startSendQueue()" disabled>📨 Send to Selected</button>
       </div>
     </div>
   </div>
@@ -998,6 +1003,18 @@
   </div>
 </div>
 
+<div class="overlay" id="sendQueueOverlay">
+  <div class="modal">
+    <h3>📨 Sending Messages</h3>
+    <p id="queueProgress" style="color:var(--gold-300);font-weight:700;margin-top:-6px;"></p>
+    <p style="font-size:14px;">Next up: <b id="queueName"></b></p>
+    <button class="pill-btn primary" id="queueOpenBtn" style="width:100%;margin-top:10px;">📱 Open Messages for This Person</button>
+    <p style="font-size:12px;color:rgba(251,248,238,.5);margin-top:10px;">After you tap Send in Messages, come back here and tap Next.</p>
+    <button class="pill-btn primary" style="width:100%;margin-top:10px;" onclick="nextQueueStep()">Next ›</button>
+    <button class="modal-close" onclick="closeSendQueue()">Cancel</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -1220,20 +1237,72 @@ function renderMessages(){
       list.innerHTML = `<div class="empty-state">No customers have a phone number saved yet.<br>Add one from their profile in the Customers tab.</div>`;
     } else {
       list.innerHTML = withPhone.map(c => `
-        <div class="client-card tappable" onclick="sendWeekendMessage('${c.id}')">
+        <div class="client-card tappable" onclick="toggleRecipientSelection('${c.id}')">
+          <input type="checkbox" class="recipient-checkbox" ${selectedRecipientIds.has(c.id) ? 'checked' : ''} onclick="event.stopPropagation(); toggleRecipientSelection('${c.id}')">
           <div class="info">
             <div class="name">${escapeHtml(c.name)}</div>
             <div class="price">${escapeHtml(c.phone)}</div>
           </div>
-          <div class="actions">
-            <span class="tap-hint">send ›</span>
-          </div>
         </div>
       `).join('');
     }
+    updateSelectedCount();
   } else {
     recipientsWrap.style.display = 'none';
   }
+}
+
+let selectedRecipientIds = new Set();
+let queueIds = [];
+let queueIndex = 0;
+
+function toggleRecipientSelection(id){
+  if(selectedRecipientIds.has(id)) selectedRecipientIds.delete(id);
+  else selectedRecipientIds.add(id);
+  renderMessages();
+}
+
+function updateSelectedCount(){
+  const n = selectedRecipientIds.size;
+  document.getElementById('recipientSelectedCount').textContent = n + ' selected';
+  document.getElementById('sendSelectedBtn').disabled = n === 0;
+}
+
+function startSendQueue(){
+  if(selectedRecipientIds.size === 0) return;
+  queueIds = Array.from(selectedRecipientIds);
+  queueIndex = 0;
+  document.getElementById('sendQueueOverlay').classList.add('show');
+  renderQueueStep();
+}
+
+function renderQueueStep(){
+  if(queueIndex >= queueIds.length){
+    closeSendQueue();
+    selectedRecipientIds.clear();
+    renderMessages();
+    showToast('All messages queued ✅');
+    return;
+  }
+  const c = clients.find(cl => cl.id === queueIds[queueIndex]);
+  document.getElementById('queueProgress').textContent = (queueIndex + 1) + ' of ' + queueIds.length;
+  document.getElementById('queueName').textContent = c ? c.name : 'Unknown';
+  document.getElementById('queueOpenBtn').onclick = function(){
+    if(!c) return;
+    const template = messageTemplates.find(m => m.id === selectedMessageId);
+    if(!template) return;
+    const digits = c.phone.replace(/[^\d+]/g, '');
+    window.location.href = `sms:${digits}?body=${encodeURIComponent(template.text)}`;
+  };
+}
+
+function nextQueueStep(){
+  queueIndex++;
+  renderQueueStep();
+}
+
+function closeSendQueue(){
+  document.getElementById('sendQueueOverlay').classList.remove('show');
 }
 
 function selectMessageTemplate(id){
@@ -1274,15 +1343,6 @@ function deleteMessageTemplate(id){
   showToast('Message deleted');
 }
 
-function sendWeekendMessage(id){
-  const c = clients.find(cl => cl.id === id);
-  if(!c || !c.phone) return;
-  const template = messageTemplates.find(m => m.id === selectedMessageId);
-  if(!template) return;
-  const digits = c.phone.replace(/[^\d+]/g, '');
-  const message = encodeURIComponent(template.text);
-  window.location.href = `sms:${digits}?body=${message}`;
-}
 
 function renderCustomers(){
   document.getElementById('customersCount').textContent = clients.length + ' total';
