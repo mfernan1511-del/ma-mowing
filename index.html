@@ -2235,7 +2235,7 @@ function openCalendar(id){
     const [y,m] = existing.split('-').map(Number);
     calViewYear = y; calViewMonth = m - 1;
   } else {
-    calViewYear = 2026; calViewMonth = 5;
+    calViewYear = 2026; calViewMonth = 6;
   }
   const c = clients.find(cl => cl.id === id);
   document.getElementById('calClientName').textContent = c.name;
