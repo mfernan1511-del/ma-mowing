@@ -1849,7 +1849,34 @@ function nearestNeighborOrder(points){
     });
     ordered.push(remaining.splice(bestIdx, 1)[0]);
   }
-  return ordered;
+  return twoOptImprove(ordered);
+}
+
+function routeLength(points){
+  let total = 0;
+  for(let i = 0; i < points.length - 1; i++) total += haversineDistance(points[i], points[i+1]);
+  return total;
+}
+
+// Untangles crossed legs left behind by the greedy nearest-neighbor pass.
+function twoOptImprove(points){
+  if(points.length < 4) return points;
+  let route = points.slice();
+  let improved = true;
+  while(improved){
+    improved = false;
+    for(let i = 0; i < route.length - 2; i++){
+      for(let j = i + 2; j < route.length - 1; j++){
+        const before = haversineDistance(route[i], route[i+1]) + haversineDistance(route[j], route[j+1]);
+        const after = haversineDistance(route[i], route[j]) + haversineDistance(route[i+1], route[j+1]);
+        if(after + 1e-9 < before){
+          route = route.slice(0, i+1).concat(route.slice(i+1, j+1).reverse(), route.slice(j+1));
+          improved = true;
+        }
+      }
+    }
+  }
+  return route;
 }
 
 let currentRouteOrder = [];
