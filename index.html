@@ -1172,6 +1172,7 @@ async function init(){
 }
 
 function syncMainDoc(){
+  if(!firstSnapshotLoaded) return; // don't overwrite real data before it has loaded
   mainDocRef.set({
     clients, weekendIds, weekendDates, weekendPaid, weekendDone, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, quotes, pin: currentPin
   }, { merge: true });
