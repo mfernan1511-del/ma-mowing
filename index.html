@@ -604,7 +604,7 @@
       </div>
     </div>
     <div class="header-actions">
-      <button class="edit-toggle-btn" id="editToggleBtn" onclick="toggleEditMode()" style="display:none;">✏️ Edit</button>
+      <button class="edit-toggle-btn" id="editToggleBtn" onclick="toggleEditMode()" style="display:none;"></button>
       <button class="lock-btn" id="lockBtn" onclick="onLockClick()">🔒 Locked</button>
     </div>
   </header>
@@ -1094,8 +1094,8 @@ let pendingJobPhotoType = 'before';
 let activeJobPhotoId = null;
 let currentPin = DEFAULT_PIN;
 let unlocked = false;
-let editMode = false;
-function canEdit(){ return unlocked && editMode; }
+let editMode = false; // kept for legacy compat but not used
+function canEdit(){ return unlocked; }
 let pinEntry = '';
 let pinMode = 'unlock'; // 'unlock' | 'setup' | 'confirm'
 let pendingNewPin = '';
@@ -2271,7 +2271,7 @@ function renderRoster(){
     list.innerHTML = `<div class="empty-state">No clients yet.</div>`;
     return;
   }
-  list.innerHTML = clients.map(c => {
+  list.innerHTML = [...clients].sort((a,b) => a.name.localeCompare(b.name)).map(c => {
     const inWeekend = weekendIds.includes(c.id);
     const dateLabel = inWeekend && weekendDates[c.id] ? formatDateShort(weekendDates[c.id]) : (inWeekend ? 'scheduled' : '');
     return `
@@ -2854,8 +2854,7 @@ function updateLockUI(){
   const btn = document.getElementById('lockBtn');
   btn.textContent = unlocked ? '🔓 Unlocked' : '🔒 Locked';
   btn.classList.toggle('unlocked', unlocked);
-  document.getElementById('editToggleBtn').style.display = unlocked ? 'inline-block' : 'none';
-  updateEditToggleUI();
+  // edit toggle removed — always editing when unlocked
 }
 
 function updateEditToggleUI(){
