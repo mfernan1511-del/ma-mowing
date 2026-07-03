@@ -2027,7 +2027,11 @@ function render(){
 
 function renderTotals(){
   const weekendClients = clients.filter(c => weekendIds.includes(c.id));
-  const total = weekendClients.reduce((s,c) => s + Number(c.price), 0);
+  const total = weekendClients.reduce((s,c) => {
+    const fd = flagNotes[c.id] || {};
+    const extra = typeof fd === 'object' ? (Number(fd.price) || 0) : 0;
+    return s + Number(c.price) + extra;
+  }, 0);
   const el = document.getElementById('totalDisplay');
   el.textContent = '$' + total.toLocaleString();
   el.classList.remove('bump');
@@ -2093,7 +2097,11 @@ function renderWeekend(){
       : (() => {
           const { weekday, dateLabel, isPast: past } = formatDayHeader(group.dateKey);
           isPast = past;
-          const groupTotal = group.clients.reduce((s,c) => s + Number(c.price), 0);
+          const groupTotal = group.clients.reduce((s,c) => {
+            const fd = flagNotes[c.id] || {};
+            const extra = typeof fd === 'object' ? (Number(fd.price) || 0) : 0;
+            return s + Number(c.price) + extra;
+          }, 0);
           return `<div class="day-header">
             <span class="day-weekday">${weekday}</span>
             <span class="day-date">${dateLabel}</span>
