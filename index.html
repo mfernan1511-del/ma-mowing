@@ -192,6 +192,19 @@
   }
   .client-card.done-today{opacity:.65;}
   .client-card.done-today .name{text-decoration:line-through;}
+  .flag-btn{
+    background:none;border:none;padding:0 2px;cursor:pointer;
+    font-size:17px;line-height:1;flex-shrink:0;opacity:.35;
+    transition:opacity .15s,transform .15s;
+  }
+  .flag-btn.flagged{opacity:1;filter:drop-shadow(0 0 4px rgba(255,200,0,.6));}
+  .flag-btn:active{transform:scale(.82);}
+  .flag-note-text{
+    font-size:11.5px;font-weight:700;color:#b45c00;
+    background:rgba(255,165,0,.18);
+    border-radius:6px;padding:2px 7px;
+    margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;
+  }
   .done-check{
     font-size:16px;color:#1f7a45;font-weight:800;
     flex-shrink:0;
@@ -1063,6 +1076,7 @@ let weekendIds = [];
 let weekendDates = {}; // { clientId: 'YYYY-MM-DD' }
 let weekendPaid = {}; // { clientId: true/false }
 let weekendDone = {}; // { clientId: true/false } - swiped "done for today" marker
+let flagNotes = {}; // { clientId: 'note text' } - ⭐ extra task reminder per client
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
 let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
@@ -1120,6 +1134,7 @@ async function init(){
         weekendDates: {},
         weekendPaid: {},
         weekendDone: {},
+        flagNotes: {},
         completedJobs: [],
         mileageLogs: [],
         invoices: [],
@@ -1139,6 +1154,7 @@ async function init(){
     weekendDates = d.weekendDates || {};
     weekendPaid = d.weekendPaid || {};
     weekendDone = d.weekendDone || {};
+    flagNotes = d.flagNotes || {};
     completedJobs = d.completedJobs || [];
     mileageLogs = d.mileageLogs || [];
     invoices = d.invoices || [];
@@ -1174,7 +1190,7 @@ async function init(){
 function syncMainDoc(){
   if(!firstSnapshotLoaded) return; // don't overwrite real data before it has loaded
   mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, quotes, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, quotes, pin: currentPin
   }, { merge: true });
 }
 
@@ -2090,6 +2106,8 @@ function renderWeekend(){
     const cardsHtml = group.clients.map(c => {
       const isPaid = !!weekendPaid[c.id];
       const isDone = !!weekendDone[c.id];
+      const note = flagNotes[c.id] || '';
+      const isFlagged = !!note;
       return `
       <div class="swipe-wrap" data-id="${c.id}">
         <div class="swipe-bg">✓ Done</div>
@@ -2099,8 +2117,10 @@ function renderWeekend(){
           <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
             <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''}</div>
             <div class="price">$${Number(c.price).toLocaleString()}</div>
+            ${note ? `<div class="flag-note-text">⭐ ${escapeHtml(note)}</div>` : ''}
           </div>
           <div class="actions">
+            <button class="flag-btn ${isFlagged ? 'flagged' : ''}" onclick="openFlagNote('${c.id}')" title="${isFlagged ? 'Edit reminder' : 'Add reminder'}">⭐</button>
             <button class="paid-toggle ${isPaid ? 'paid' : 'unpaid'}" ${canEdit() ? `onclick="togglePaid('${c.id}')"` : 'disabled'}>
               ${isPaid ? '✓ Paid' : 'Unpaid'}
             </button>
@@ -2127,6 +2147,23 @@ function toggleDoneToday(id){
   weekendDone[id] = !weekendDone[id];
   syncMainDoc();
   showToast(weekendDone[id] ? 'Marked done for today ✅' : 'Unmarked');
+}
+
+function openFlagNote(clientId){
+  const client = clients.find(c => c.id === clientId);
+  const current = flagNotes[clientId] || '';
+  const name = client ? client.name : 'this client';
+  const note = prompt(`Extra task for ${name}:\n(leave blank to remove star)`, current);
+  if(note === null) return; // cancelled
+  if(note.trim() === ''){
+    delete flagNotes[clientId];
+    showToast('Reminder removed');
+  } else {
+    flagNotes[clientId] = note.trim();
+    showToast('⭐ Reminder saved');
+  }
+  syncMainDoc();
+  renderWeekend();
 }
 
 function attachSwipeHandlers(){
