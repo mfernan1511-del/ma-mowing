@@ -2106,8 +2106,9 @@ function renderWeekend(){
     const cardsHtml = group.clients.map(c => {
       const isPaid = !!weekendPaid[c.id];
       const isDone = !!weekendDone[c.id];
-      const note = flagNotes[c.id] || '';
-      const isFlagged = !!note;
+      const flagData = flagNotes[c.id] || {};
+      const isFlagged = typeof flagData === 'object' ? !!flagData.on : !!flagData;
+      const note = typeof flagData === 'object' ? (flagData.note || '') : '';
       return `
       <div class="swipe-wrap" data-id="${c.id}">
         <div class="swipe-bg">✓ Done</div>
@@ -2117,10 +2118,10 @@ function renderWeekend(){
           <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
             <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''}</div>
             <div class="price">$${Number(c.price).toLocaleString()}</div>
-            ${note ? `<div class="flag-note-text">⭐ ${escapeHtml(note)}</div>` : ''}
+            ${note ? `<div class="flag-note-text">${escapeHtml(note)}</div>` : ''}
           </div>
           <div class="actions">
-            <button class="flag-btn ${isFlagged ? 'flagged' : ''}" onclick="openFlagNote('${c.id}')" title="${isFlagged ? 'Edit reminder' : 'Add reminder'}">⭐</button>
+            <button class="flag-btn ${isFlagged ? 'flagged' : ''}" onclick="toggleFlag('${c.id}')" oncontextmenu="openFlagNote('${c.id}');return false;" ontouchstart="startFlagHold('${c.id}',event)" ontouchend="clearFlagHold()" ontouchmove="clearFlagHold()" title="Tap to flag · Hold to add note">⭐</button>
             <button class="paid-toggle ${isPaid ? 'paid' : 'unpaid'}" ${canEdit() ? `onclick="togglePaid('${c.id}')"` : 'disabled'}>
               ${isPaid ? '✓ Paid' : 'Unpaid'}
             </button>
@@ -2149,19 +2150,41 @@ function toggleDoneToday(id){
   showToast(weekendDone[id] ? 'Marked done for today ✅' : 'Unmarked');
 }
 
+let _flagHoldTimer = null;
+
+function startFlagHold(clientId, e){
+  e.preventDefault();
+  _flagHoldTimer = setTimeout(() => {
+    _flagHoldTimer = null;
+    openFlagNote(clientId);
+  }, 500);
+}
+function clearFlagHold(){
+  if(_flagHoldTimer){ clearTimeout(_flagHoldTimer); _flagHoldTimer = null; }
+}
+
+function toggleFlag(clientId){
+  if(_flagHoldTimer) return; // hold in progress, let it fire
+  const fd = flagNotes[clientId] || {};
+  const current = typeof fd === 'object' ? fd : { on: !!fd, note: typeof fd === 'string' ? fd : '' };
+  current.on = !current.on;
+  flagNotes[clientId] = current;
+  syncMainDoc();
+  renderWeekend();
+}
+
 function openFlagNote(clientId){
   const client = clients.find(c => c.id === clientId);
-  const current = flagNotes[clientId] || '';
+  const fd = flagNotes[clientId] || {};
+  const currentNote = typeof fd === 'object' ? (fd.note || '') : (typeof fd === 'string' ? fd : '');
   const name = client ? client.name : 'this client';
-  const note = prompt(`Extra task for ${name}:\n(leave blank to remove star)`, current);
-  if(note === null) return; // cancelled
-  if(note.trim() === ''){
-    delete flagNotes[clientId];
-    showToast('Reminder removed');
-  } else {
-    flagNotes[clientId] = note.trim();
-    showToast('⭐ Reminder saved');
-  }
+  const note = prompt(`Extra task for ${name}:\n(leave blank to clear note)`, currentNote);
+  if(note === null) return;
+  const existing = typeof fd === 'object' ? fd : { on: true, note: '' };
+  existing.note = note.trim();
+  if(note.trim()) existing.on = true; // auto-light star when note added
+  flagNotes[clientId] = existing;
+  showToast(note.trim() ? '⭐ Note saved' : 'Note cleared');
   syncMainDoc();
   renderWeekend();
 }
