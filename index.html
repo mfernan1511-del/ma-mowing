@@ -2109,6 +2109,7 @@ function renderWeekend(){
       const flagData = flagNotes[c.id] || {};
       const isFlagged = typeof flagData === 'object' ? !!flagData.on : !!flagData;
       const note = typeof flagData === 'object' ? (flagData.note || '') : '';
+      const extraPrice = typeof flagData === 'object' ? (flagData.price || 0) : 0;
       return `
       <div class="swipe-wrap" data-id="${c.id}">
         <div class="swipe-bg">✓ Done</div>
@@ -2117,8 +2118,8 @@ function renderWeekend(){
           ${isDone ? `<span class="done-check" title="Marked done today">✓</span>` : ''}
           <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
             <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''}</div>
-            <div class="price">$${Number(c.price).toLocaleString()}</div>
-            ${note ? `<div class="flag-note-text">${escapeHtml(note)}</div>` : ''}
+            <div class="price">$${Number(c.price).toLocaleString()}${extraPrice ? ` <span style="color:#b45c00">+ $${Number(extraPrice).toLocaleString()}</span>` : ''}</div>
+            ${note ? `<div class="flag-note-text">${escapeHtml(note)}${extraPrice ? ` · $${Number(extraPrice).toLocaleString()}` : ''}</div>` : ''}
           </div>
           <div class="actions">
             <button class="flag-btn ${isFlagged ? 'flagged' : ''}" onclick="toggleFlag('${c.id}')" oncontextmenu="openFlagNote('${c.id}');return false;" ontouchstart="startFlagHold('${c.id}',event)" ontouchend="clearFlagHold()" ontouchmove="clearFlagHold()" title="Tap to flag · Hold to add note">⭐</button>
@@ -2176,15 +2177,26 @@ function toggleFlag(clientId){
 function openFlagNote(clientId){
   const client = clients.find(c => c.id === clientId);
   const fd = flagNotes[clientId] || {};
-  const currentNote = typeof fd === 'object' ? (fd.note || '') : (typeof fd === 'string' ? fd : '');
+  const existing = typeof fd === 'object' ? fd : { on: true, note: '', price: 0 };
+  const currentNote = existing.note || '';
+  const currentPrice = existing.price || '';
   const name = client ? client.name : 'this client';
-  const note = prompt(`Extra task for ${name}:\n(leave blank to clear note)`, currentNote);
+
+  const note = prompt(`Extra task for ${name}:\n(leave blank to clear)`, currentNote);
   if(note === null) return;
-  const existing = typeof fd === 'object' ? fd : { on: true, note: '' };
+
+  let price = 0;
+  if(note.trim()){
+    const rawPrice = prompt(`Price for "${note.trim()}" (leave blank for $0):`, currentPrice || '');
+    if(rawPrice === null) return;
+    price = parseFloat(rawPrice.replace(/[^0-9.]/g,'')) || 0;
+  }
+
   existing.note = note.trim();
-  if(note.trim()) existing.on = true; // auto-light star when note added
+  existing.price = price;
+  if(note.trim()) existing.on = true;
   flagNotes[clientId] = existing;
-  showToast(note.trim() ? '⭐ Note saved' : 'Note cleared');
+  showToast(note.trim() ? `⭐ ${note.trim()}${price ? ' · $'+price : ''} saved` : 'Note cleared');
   syncMainDoc();
   renderWeekend();
 }
