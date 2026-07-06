@@ -1616,18 +1616,41 @@ function renderRevenue(){
     list.innerHTML = `<div class="empty-state">No completed jobs yet.<br>Mark a job done from the Schedule tab.</div>`;
   } else {
     const sorted = [...completedJobs].sort((a,b) => b.completedDate.localeCompare(a.completedDate));
-    list.innerHTML = sorted.map(j => `
-      <div class="completed-row">
-        <div class="info">
-          <div class="name">${escapeHtml(j.name)} ${j.paid ? '<span class="badge">paid</span>' : ''}</div>
-          <div class="meta">Completed ${formatDateShort(j.completedDate)}</div>
+    // Group by date
+    const groups = [];
+    const seen = {};
+    sorted.forEach(j => {
+      const d = j.completedDate || 'Unknown';
+      if(!seen[d]){ seen[d] = []; groups.push({ date: d, jobs: seen[d] }); }
+      seen[d].push(j);
+    });
+    list.innerHTML = groups.map(g => {
+      const dayTotal = g.jobs.reduce((s,j) => s + Number(j.price), 0);
+      const label = g.date === 'Unknown' ? 'Unknown Date' : (() => {
+        const [y,m,d] = g.date.split('-');
+        const dt = new Date(Number(y), Number(m)-1, Number(d));
+        return dt.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+      })();
+      return `
+        <div style="margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 2px 8px;border-bottom:1px solid rgba(126,152,171,.2);margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:800;color:var(--gold-300);">${label}</span>
+            <span style="font-size:13px;font-weight:800;color:var(--cream);">$${dayTotal.toLocaleString()}</span>
+          </div>
+          ${g.jobs.map(j => `
+            <div class="completed-row">
+              <div class="info">
+                <div class="name">${escapeHtml(j.name)} ${j.paid ? '<span class="badge">paid</span>' : ''}</div>
+              </div>
+              <div class="row-actions">
+                <div class="price">$${Number(j.price).toLocaleString()}</div>
+                ${canEdit() ? `<button class="icon-btn delete" onclick="deleteCompletedJob('${j.id}')" title="Remove">🗑</button>` : ''}
+              </div>
+            </div>
+          `).join('')}
         </div>
-        <div class="row-actions">
-          <div class="price">$${Number(j.price).toLocaleString()}</div>
-          ${canEdit() ? `<button class="icon-btn delete" onclick="deleteCompletedJob('${j.id}')" title="Remove">🗑</button>` : ''}
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   renderMileage();
