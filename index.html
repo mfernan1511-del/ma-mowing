@@ -209,6 +209,19 @@
   }
   .flag-btn.flagged{opacity:1;filter:drop-shadow(0 0 4px rgba(255,200,0,.6));}
   .flag-btn:active{transform:scale(.82);}
+  .todo-row{
+    display:flex;align-items:center;gap:10px;
+    padding:11px 4px;border-bottom:1px solid rgba(126,152,171,.12);
+  }
+  .todo-row:last-child{border-bottom:none;}
+  .todo-check{
+    width:22px;height:22px;border-radius:6px;border:2px solid rgba(126,152,171,.4);
+    background:none;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    transition:background .15s,border-color .15s;font-size:13px;
+  }
+  .todo-check.checked{background:#1f7a45;border-color:#1f7a45;color:#fff;}
+  .todo-text{flex:1;font-size:14px;font-weight:600;}
+  .todo-text.done{text-decoration:line-through;opacity:.45;}
   .flag-note-text{
     font-size:11.5px;font-weight:700;color:#b45c00;
     background:rgba(255,165,0,.18);
@@ -792,6 +805,18 @@
 
       <div id="maintenanceList"></div>
     </div>
+
+    <div class="section" style="margin-top:8px;">
+      <div class="section-head">
+        <h2>📝 My To-Do List</h2>
+        <span class="count" id="todoCount">0 items</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="todoInput" type="text" placeholder="Add a to-do…" style="flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(126,152,171,.3);border-radius:10px;padding:10px 14px;color:var(--cream);font-size:14px;" onkeydown="if(event.key==='Enter')addTodo()">
+        <button onclick="addTodo()" class="pill-btn primary" style="flex-shrink:0;">Add</button>
+      </div>
+      <div id="todoList"></div>
+    </div>
   </div>
 
   <div id="quotesView" style="display:none;">
@@ -1097,6 +1122,7 @@ let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber 
 let recurringClients = []; // [{ id, name, amount }]
 let messageTemplates = []; // [{ id, label, text }]
 let maintenanceTasks = []; // [{ id, name, type, intervalMiles/intervalDays, lastDoneMileage/lastDoneDate }]
+let personalTodos = []; // [{ id, text, done }]
 let quotes = []; // [{ id, quoteNumber, customerName, phone, email, description, amount, date }]
 let activeQuoteId = null;
 let selectedMessageId = null;
@@ -1175,6 +1201,7 @@ async function init(){
     recurringClients = d.recurringClients || [];
     messageTemplates = d.messageTemplates || [];
     maintenanceTasks = d.maintenanceTasks || [];
+    personalTodos = d.personalTodos || [];
     quotes = d.quotes || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
@@ -1204,7 +1231,7 @@ async function init(){
 function syncMainDoc(){
   if(!firstSnapshotLoaded) return; // don't overwrite real data before it has loaded
   mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, quotes, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, quotes, pin: currentPin
   }, { merge: true });
 }
 
@@ -1875,6 +1902,47 @@ function renderMaintenance(){
       </div>
     </div>
   `).join('');
+  renderTodos();
+}
+
+function renderTodos(){
+  const list = document.getElementById('todoList');
+  if(!list) return;
+  document.getElementById('todoCount').textContent = personalTodos.length + ' item' + (personalTodos.length === 1 ? '' : 's');
+  if(personalTodos.length === 0){
+    list.innerHTML = `<div class="empty-state" style="padding:14px 0;">Nothing here yet — add something above.</div>`;
+    return;
+  }
+  list.innerHTML = personalTodos.map(t => `
+    <div class="todo-row">
+      <button class="todo-check ${t.done ? 'checked' : ''}" onclick="toggleTodo('${t.id}')">${t.done ? '✓' : ''}</button>
+      <span class="todo-text ${t.done ? 'done' : ''}">${escapeHtml(t.text)}</span>
+      <button class="icon-btn delete" onclick="deleteTodo('${t.id}')" title="Delete">🗑</button>
+    </div>
+  `).join('');
+}
+
+function addTodo(){
+  const input = document.getElementById('todoInput');
+  const text = input.value.trim();
+  if(!text) return;
+  personalTodos.push({ id: 'td' + Date.now(), text, done: false });
+  input.value = '';
+  syncMainDoc();
+  renderTodos();
+}
+
+function toggleTodo(id){
+  const t = personalTodos.find(t => t.id === id);
+  if(t) t.done = !t.done;
+  syncMainDoc();
+  renderTodos();
+}
+
+function deleteTodo(id){
+  personalTodos = personalTodos.filter(t => t.id !== id);
+  syncMainDoc();
+  renderTodos();
 }
 
 let routeMapInstance = null;
