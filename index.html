@@ -682,7 +682,10 @@
     <div class="section">
       <div class="section-head">
         <h2>✅ Completed Jobs</h2>
-        <span class="count" id="completedCount">0 total</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="count" id="completedCount">0 total</span>
+          <button onclick="toggleRevenueCondense()" id="condenseBtn" style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid rgba(126,152,171,.35);background:rgba(255,255,255,.06);color:var(--gold-300);cursor:pointer;">Condense</button>
+        </div>
       </div>
       <div id="completedList"></div>
     </div>
@@ -1088,6 +1091,7 @@ let weekendPaid = {}; // { clientId: true/false }
 let weekendDone = {}; // { clientId: true/false } - swiped "done for today" marker
 let flagNotes = {}; // { clientId: 'note text' } - ⭐ extra task reminder per client
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
+let revenueCondensed = false;
 let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
 let recurringClients = []; // [{ id, name, amount }]
@@ -1632,12 +1636,12 @@ function renderRevenue(){
         return dt.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
       })();
       return `
-        <div style="margin-bottom:18px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 2px 8px;border-bottom:1px solid rgba(126,152,171,.2);margin-bottom:6px;">
+        <div style="margin-bottom:${revenueCondensed ? '6px' : '18px'};">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 2px 8px;border-bottom:1px solid rgba(126,152,171,.2);${revenueCondensed ? '' : 'margin-bottom:6px;'}">
             <span style="font-size:13px;font-weight:800;color:var(--gold-300);">${label}</span>
-            <span style="font-size:13px;font-weight:800;color:var(--cream);">$${dayTotal.toLocaleString()}</span>
+            <span style="font-size:13px;font-weight:800;color:var(--cream);">$${dayTotal.toLocaleString()} <span style="font-weight:500;opacity:.6;font-size:11px;">(${g.jobs.length} job${g.jobs.length===1?'':'s'})</span></span>
           </div>
-          ${g.jobs.map(j => `
+          ${revenueCondensed ? '' : g.jobs.map(j => `
             <div class="completed-row">
               <div class="info">
                 <div class="name">${escapeHtml(j.name)} ${j.paid ? '<span class="badge">paid</span>' : ''}</div>
@@ -1653,8 +1657,16 @@ function renderRevenue(){
     }).join('');
   }
 
+  const btn = document.getElementById('condenseBtn');
+  if(btn) btn.textContent = revenueCondensed ? 'Expand' : 'Condense';
+
   renderMileage();
   renderRecurring();
+}
+
+function toggleRevenueCondense(){
+  revenueCondensed = !revenueCondensed;
+  renderRevenue();
 }
 
 function addRecurringClient(){
