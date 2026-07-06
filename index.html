@@ -192,6 +192,14 @@
   }
   .client-card.done-today{opacity:.65;}
   .client-card.done-today .name{text-decoration:line-through;}
+  .done-yard-btn{
+    font-size:12px;font-weight:800;border:none;border-radius:10px;
+    padding:6px 11px;cursor:pointer;flex-shrink:0;
+    transition:transform .12s,background .15s;
+    background:#1f7a45;color:#fff;
+  }
+  .done-yard-btn.is-done{background:#555e62;color:rgba(255,255,255,.7);}
+  .done-yard-btn:active{transform:scale(.9);}
   .flag-btn{
     background:none;border:none;padding:0 2px;cursor:pointer;
     font-size:17px;line-height:1;flex-shrink:0;opacity:.35;
@@ -2131,11 +2139,14 @@ function renderWeekend(){
           </div>
           <div class="actions">
             <button class="flag-btn ${isFlagged ? 'flagged' : ''}" onclick="toggleFlag('${c.id}')" oncontextmenu="openFlagNote('${c.id}');return false;" ontouchstart="startFlagHold('${c.id}',event)" ontouchend="clearFlagHold()" ontouchmove="clearFlagHold()" title="Tap to flag · Hold to add note">⭐</button>
+            <button class="done-yard-btn ${isDone ? 'is-done' : ''}" onclick="toggleDoneToday('${c.id}')">
+              ${isDone ? '✓ Done' : 'Done'}
+            </button>
             <button class="paid-toggle ${isPaid ? 'paid' : 'unpaid'}" ${canEdit() ? `onclick="togglePaid('${c.id}')"` : 'disabled'}>
               ${isPaid ? '✓ Paid' : 'Unpaid'}
             </button>
             ${canEdit() ? `
-              <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Mark completed">✓</button>
+              <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Log to revenue at end of day">✓</button>
               <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
             ` : ''}
           </div>
