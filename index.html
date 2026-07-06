@@ -193,13 +193,15 @@
   .client-card.done-today{opacity:.65;}
   .client-card.done-today .name{text-decoration:line-through;}
   .done-yard-btn{
-    font-size:12px;font-weight:800;border:none;border-radius:10px;
-    padding:6px 11px;cursor:pointer;flex-shrink:0;
+    font-size:13px;font-weight:800;border:none;border-radius:10px;
+    padding:8px 0;cursor:pointer;width:100%;
     transition:transform .12s,background .15s;
-    background:#1f7a45;color:#fff;
+    background:#1f7a45;color:#fff;margin-top:8px;
   }
-  .done-yard-btn.is-done{background:#555e62;color:rgba(255,255,255,.7);}
-  .done-yard-btn:active{transform:scale(.9);}
+  .done-yard-btn.is-done{background:#4a5a52;color:rgba(255,255,255,.8);}
+  .done-yard-btn:active{transform:scale(.97);}
+  .card-top{display:flex;align-items:center;gap:12px;width:100%;}
+  .card-bottom{width:100%;}
   .flag-btn{
     background:none;border:none;padding:0 2px;cursor:pointer;
     font-size:17px;line-height:1;flex-shrink:0;opacity:.35;
@@ -218,7 +220,7 @@
     flex-shrink:0;
   }
   .client-card{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    display:flex;flex-direction:column;align-items:stretch;gap:0;
     background:#c7cdd1;
     border:1px solid rgba(0,0,0,.06);
     border-radius:16px;
@@ -2130,25 +2132,29 @@ function renderWeekend(){
       <div class="swipe-wrap" data-id="${c.id}">
         <div class="swipe-bg">✓ Done</div>
         <div class="client-card ${isDone ? 'done-today' : ''}" data-id="${c.id}">
-          ${canEdit() ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
-          ${isDone ? `<span class="done-check" title="Marked done today">✓</span>` : ''}
-          <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
-            <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''}</div>
-            <div class="price">$${Number(c.price).toLocaleString()}${extraPrice ? ` <span style="color:#b45c00">+ $${Number(extraPrice).toLocaleString()}</span>` : ''}</div>
-            ${note ? `<div class="flag-note-text">${escapeHtml(note)}${extraPrice ? ` · $${Number(extraPrice).toLocaleString()}` : ''}</div>` : ''}
+          <div class="card-top">
+            ${canEdit() ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
+            ${isDone ? `<span class="done-check" title="Marked done today">✓</span>` : ''}
+            <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
+              <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''}</div>
+              <div class="price">$${Number(c.price).toLocaleString()}${extraPrice ? ` <span style="color:#b45c00">+ $${Number(extraPrice).toLocaleString()}</span>` : ''}</div>
+              ${note ? `<div class="flag-note-text">${escapeHtml(note)}${extraPrice ? ` · $${Number(extraPrice).toLocaleString()}` : ''}</div>` : ''}
+            </div>
+            <div class="actions">
+              <button class="flag-btn ${isFlagged ? 'flagged' : ''}" onclick="toggleFlag('${c.id}')" oncontextmenu="openFlagNote('${c.id}');return false;" ontouchstart="startFlagHold('${c.id}',event)" ontouchend="clearFlagHold()" ontouchmove="clearFlagHold()" title="Tap to flag · Hold to add note">⭐</button>
+              <button class="paid-toggle ${isPaid ? 'paid' : 'unpaid'}" ${canEdit() ? `onclick="togglePaid('${c.id}')"` : 'disabled'}>
+                ${isPaid ? '✓ Paid' : 'Unpaid'}
+              </button>
+              ${canEdit() ? `
+                <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Log to revenue at end of day">✓</button>
+                <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
+              ` : ''}
+            </div>
           </div>
-          <div class="actions">
-            <button class="flag-btn ${isFlagged ? 'flagged' : ''}" onclick="toggleFlag('${c.id}')" oncontextmenu="openFlagNote('${c.id}');return false;" ontouchstart="startFlagHold('${c.id}',event)" ontouchend="clearFlagHold()" ontouchmove="clearFlagHold()" title="Tap to flag · Hold to add note">⭐</button>
+          <div class="card-bottom">
             <button class="done-yard-btn ${isDone ? 'is-done' : ''}" onclick="toggleDoneToday('${c.id}')">
               ${isDone ? '✓ Done' : 'Done'}
             </button>
-            <button class="paid-toggle ${isPaid ? 'paid' : 'unpaid'}" ${canEdit() ? `onclick="togglePaid('${c.id}')"` : 'disabled'}>
-              ${isPaid ? '✓ Paid' : 'Unpaid'}
-            </button>
-            ${canEdit() ? `
-              <button class="icon-btn complete" onclick="completeJob('${c.id}')" title="Log to revenue at end of day">✓</button>
-              <button class="icon-btn remove" onclick="removeFromWeekend('${c.id}')" title="Remove from weekend">✕</button>
-            ` : ''}
           </div>
         </div>
       </div>
