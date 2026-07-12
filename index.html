@@ -706,7 +706,10 @@
     <div class="section">
       <div class="section-head">
         <h2>🚚 Truck Mileage</h2>
-        <span class="count" id="mileageTotalLabel">0 mi total</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="count" id="mileageTotalLabel">0 mi total</span>
+          <button onclick="toggleMileageCondense()" id="mileageCondenseBtn" style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;border:1px solid rgba(126,152,171,.35);background:rgba(255,255,255,.06);color:var(--gold-300);cursor:pointer;">Condense</button>
+        </div>
       </div>
 
       <div class="add-form" id="mileageForm">
@@ -1117,6 +1120,7 @@ let weekendDone = {}; // { clientId: true/false } - swiped "done for today" mark
 let flagNotes = {}; // { clientId: 'note text' } - ⭐ extra task reminder per client
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
 let revenueCondensed = false;
+let mileageCondensed = false;
 let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
 let recurringClients = []; // [{ id, name, amount }]
@@ -1775,6 +1779,12 @@ function renderMileage(){
     list.innerHTML = `<div class="empty-state">No mileage logged yet.</div>`;
     return;
   }
+  const btn = document.getElementById('mileageCondenseBtn');
+  if(btn) btn.textContent = mileageCondensed ? 'Expand' : 'Condense';
+  if(mileageCondensed){
+    list.innerHTML = '';
+    return;
+  }
   const sorted = [...mileageLogs].sort((a,b) => b.date.localeCompare(a.date));
   list.innerHTML = sorted.map(m => `
     <div class="completed-row">
@@ -1787,6 +1797,11 @@ function renderMileage(){
       </div>
     </div>
   `).join('');
+}
+
+function toggleMileageCondense(){
+  mileageCondensed = !mileageCondensed;
+  renderMileage();
 }
 
 function getTotalMileage(){
