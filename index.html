@@ -895,6 +895,12 @@
     <div class="receipt-edit-fields" id="receiptEditFields" style="display:none;">
       <label class="receipt-field-label">Date</label>
       <input type="date" id="receiptDateInput" class="receipt-input">
+      <label class="receipt-field-label">Store / Company</label>
+      <input type="text" id="receiptCompanyInput" class="receipt-input" placeholder="e.g. Home Depot">
+      <label class="receipt-field-label">Item Details</label>
+      <input type="text" id="receiptDetailsInput" class="receipt-input" placeholder="e.g. Oil, blades, fuel">
+      <label class="receipt-field-label">Payment Method</label>
+      <input type="text" id="receiptPaymentInput" class="receipt-input" placeholder="e.g. Credit card, Cash">
       <label class="receipt-field-label">Total ($)</label>
       <input type="number" id="receiptTotalInput" class="receipt-input" step="0.01" min="0" placeholder="0.00">
       <button class="pill-btn primary" style="width:100%;margin-top:10px;" onclick="saveReceiptEdit()">Save Changes</button>
@@ -1697,6 +1703,9 @@ function openReceiptLightbox(id){
     document.getElementById('receiptEditFields').style.display = 'block';
     document.getElementById('receiptViewFields').style.display = 'none';
     document.getElementById('receiptDateInput').value = r.receiptDate || '';
+    document.getElementById('receiptCompanyInput').value = r.company || '';
+    document.getElementById('receiptDetailsInput').value = r.details || '';
+    document.getElementById('receiptPaymentInput').value = r.payment || '';
     document.getElementById('receiptTotalInput').value = r.total || '';
   } else {
     document.getElementById('receiptEditFields').style.display = 'none';
@@ -1705,6 +1714,8 @@ function openReceiptLightbox(id){
     vf.innerHTML = `
       <div><div class="vf-label">Total</div><div class="vf-total">${r.total ? '$' + Number(r.total).toLocaleString() : '—'}</div></div>
       <div><div class="vf-label">Date</div><div class="vf-date">${r.receiptDate ? formatDateShort(r.receiptDate) : '—'}</div></div>
+      ${r.company ? `<div style="grid-column:1/-1"><div class="vf-label">Store</div><div class="vf-date">${escapeHtml(r.company)}</div></div>` : ''}
+      ${r.payment ? `<div><div class="vf-label">Payment</div><div class="vf-date">${escapeHtml(r.payment)}</div></div>` : ''}
     `;
   }
   document.getElementById('receiptOverlay').classList.add('show');
@@ -1714,6 +1725,9 @@ function saveReceiptEdit(){
   if(!canEdit() || !activeReceiptId) return;
   receiptsCollRef.doc(activeReceiptId).update({
     receiptDate: document.getElementById('receiptDateInput').value,
+    company: document.getElementById('receiptCompanyInput').value,
+    details: document.getElementById('receiptDetailsInput').value,
+    payment: document.getElementById('receiptPaymentInput').value,
     total: document.getElementById('receiptTotalInput').value
   });
   closeReceiptLightbox();
