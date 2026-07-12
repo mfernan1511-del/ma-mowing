@@ -754,7 +754,10 @@
           <div style="font-size:11px;font-weight:700;color:rgba(251,248,238,.5);text-transform:uppercase;letter-spacing:.5px;">Total Spent</div>
           <div style="font-size:22px;font-weight:800;color:var(--cream);" id="receiptsTotalDisplay">$0</div>
         </div>
-        <button onclick="exportReceiptsPDF()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:var(--green-600);color:#fff;cursor:pointer;">📄 Export PDF</button>
+        <div style="display:flex;gap:8px;">
+          <button onclick="exportReceiptsExcel()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;cursor:pointer;">📊 Excel</button>
+          <button onclick="exportReceiptsPDF()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:var(--green-600);color:#fff;cursor:pointer;">📄 PDF</button>
+        </div>
       </div>
       <div class="receipts-grid" id="receiptsGrid"></div>
     </div>
@@ -1097,6 +1100,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -1495,6 +1499,9 @@ function scanReceipt(id, dataURL){
       const updates = {};
       if(parsed.date) updates.receiptDate = parsed.date;
       if(parsed.total) updates.total = parsed.total;
+      if(parsed.company) updates.company = parsed.company;
+      if(parsed.payment) updates.payment = parsed.payment;
+      if(parsed.details) updates.details = parsed.details;
       if(Object.keys(updates).length) receiptsCollRef.doc(id).update(updates);
       if(parsed.date || parsed.total) showToast('Receipt scanned ✅ check the details');
       else showToast('Could not auto-read this one — tap to enter manually');
@@ -1546,7 +1553,22 @@ function parseReceiptText(text){
     if(+mo >= 1 && +mo <= 12 && +da >= 1 && +da <= 31) date = `${yr}-${mo}-${da}`;
   }
 
-  return { total, date };
+  // Company name — usually the first non-empty line at the top
+  const company = lines[0] || '';
+
+  // Payment method — look for card/cash/credit keywords
+  let payment = '';
+  const payLine = lines.find(l => /visa|mastercard|amex|discover|credit|debit|cash|check|ebt|apple pay|google pay|tap to pay/i.test(l));
+  if(payLine){
+    const pm = payLine.match(/(visa|mastercard|amex|discover|credit card|debit card|cash|check|ebt|apple pay|google pay|tap to pay)/i);
+    if(pm) payment = pm[1];
+  }
+
+  // Items/details — lines that look like purchased items (have a price at end)
+  const itemLines = lines.filter(l => /\$?\d+\.\d{2}/.test(l) && !/total|tax|subtotal|change|balance/i.test(l));
+  const details = itemLines.slice(0, 5).join('; ');
+
+  return { total, date, company, payment, details };
 }
 
 function renderReceipts(){
@@ -1569,6 +1591,30 @@ function renderReceipts(){
       </div>
     </div>
   `).join('');
+}
+
+function exportReceiptsExcel(){
+  if(typeof XLSX === 'undefined'){ showToast('Excel library not loaded yet, try again'); return; }
+  if(receipts.length === 0){ showToast('No receipts to export'); return; }
+  const year = new Date().getFullYear();
+  const sorted = [...receipts].sort((a,b) => (a.receiptDate||'').localeCompare(b.receiptDate||''));
+  const rows = sorted.map(r => ({
+    'Date': r.receiptDate ? new Date(r.receiptDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '',
+    'Company / Store': r.company || '',
+    'Item Details': r.details || '',
+    'Total ($)': r.total ? Number(r.total) : '',
+    'Payment Method': r.payment || '',
+  }));
+  // Add a totals row at the bottom
+  const grandTotal = sorted.reduce((s,r) => s + (Number(r.total)||0), 0);
+  rows.push({ 'Date':'', 'Company / Store':'', 'Item Details':'TOTAL', 'Total ($)': grandTotal, 'Payment Method':'' });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{ wch:14 },{ wch:22 },{ wch:40 },{ wch:12 },{ wch:16 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${year} Receipts`);
+  XLSX.writeFile(wb, `MA_Mowing_Receipts_${year}.xlsx`);
+  showToast('Excel file downloaded 📊');
 }
 
 function exportReceiptsPDF(){
