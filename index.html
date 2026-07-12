@@ -741,6 +741,7 @@
   <div id="receiptsView" style="display:none;">
     <div class="fab-row" id="receiptControls" style="display:none;">
       <button class="pill-btn primary" onclick="triggerReceiptCapture()">📷 Add Receipt</button>
+      <button class="pill-btn" onclick="openManualReceipt()">✏️ Manual Entry</button>
     </div>
     <input type="file" id="receiptInput" accept="image/*" capture="environment" style="display:none" onchange="handleReceiptFile(event)">
 
@@ -885,6 +886,25 @@
       <button class="pill-btn" onclick="clearCalendarDate()">Remove from schedule</button>
     </div>
     <button class="modal-close" onclick="closeCalendar()">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="manualReceiptOverlay">
+  <div class="modal lightbox-modal">
+    <h3>Manual Receipt Entry</h3>
+    <p style="font-size:13px;color:rgba(251,248,238,.55);margin:-4px 0 14px;">No photo needed — just fill in what you remember.</p>
+    <label class="receipt-field-label">Date</label>
+    <input type="date" id="manualDateInput" class="receipt-input">
+    <label class="receipt-field-label">Store / Company</label>
+    <input type="text" id="manualCompanyInput" class="receipt-input" placeholder="e.g. Home Depot">
+    <label class="receipt-field-label">Item Details</label>
+    <input type="text" id="manualDetailsInput" class="receipt-input" placeholder="e.g. Oil, blades, fuel">
+    <label class="receipt-field-label">Payment Method</label>
+    <input type="text" id="manualPaymentInput" class="receipt-input" placeholder="e.g. Credit card, Cash">
+    <label class="receipt-field-label">Total ($)</label>
+    <input type="number" id="manualTotalInput" class="receipt-input" step="0.01" min="0" placeholder="0.00">
+    <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveManualReceipt()">Save Entry</button>
+    <button class="modal-close" onclick="document.getElementById('manualReceiptOverlay').classList.remove('show')">Close</button>
   </div>
 </div>
 
@@ -1732,6 +1752,35 @@ function saveReceiptEdit(){
   });
   closeReceiptLightbox();
   showToast('Receipt updated ✅');
+}
+
+function openManualReceipt(){
+  document.getElementById('manualDateInput').value = new Date().toISOString().slice(0,10);
+  document.getElementById('manualCompanyInput').value = '';
+  document.getElementById('manualDetailsInput').value = '';
+  document.getElementById('manualPaymentInput').value = '';
+  document.getElementById('manualTotalInput').value = '';
+  document.getElementById('manualReceiptOverlay').classList.add('show');
+}
+
+function saveManualReceipt(){
+  const total = document.getElementById('manualTotalInput').value;
+  const date = document.getElementById('manualDateInput').value;
+  if(!total && !date){ showToast('Add at least a date or total'); return; }
+  const id = 'r' + Date.now();
+  receiptsCollRef.doc(id).set({
+    id,
+    dataURL: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="160"><rect width="120" height="160" fill="%23c7cdd1"/><text x="60" y="75" text-anchor="middle" font-size="32">🧾</text><text x="60" y="105" text-anchor="middle" font-size="11" fill="%234d6675">No photo</text></svg>',
+    receiptDate: date,
+    company: document.getElementById('manualCompanyInput').value,
+    details: document.getElementById('manualDetailsInput').value,
+    payment: document.getElementById('manualPaymentInput').value,
+    total,
+    addedDate: new Date().toISOString().slice(0,10),
+    manual: true
+  });
+  document.getElementById('manualReceiptOverlay').classList.remove('show');
+  showToast('Receipt entry saved ✅');
 }
 
 function closeReceiptLightbox(){
