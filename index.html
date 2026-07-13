@@ -2087,6 +2087,7 @@ function renderMaintenance(){
   const list = document.getElementById('maintenanceList');
   if(maintenanceTasks.length === 0){
     list.innerHTML = `<div class="empty-state">No maintenance tasks yet.${canEdit() ? '<br>Tap "+ New Task" to add one.' : ''}</div>`;
+    renderTodos();
     return;
   }
   const withStatus = maintenanceTasks.map(t => ({ task: t, status: getMaintenanceStatus(t) }));
