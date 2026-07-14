@@ -447,6 +447,18 @@
     background:var(--gold-400);
   }
   .cal-day.selected .dot{background:#122029;}
+  .ov-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+  .ov-dot.job{background:#1f7a45;}
+  .ov-dot.done{background:#7e98ab;}
+  .ov-dot.todo{background:#e2a83a;}
+  .ov-dots{display:flex;gap:2px;justify-content:center;flex-wrap:wrap;margin-top:2px;}
+  .ov-event-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(126,152,171,.12);font-size:13px;}
+  .ov-event-row:last-child{border-bottom:none;}
+  .ov-badge{font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;flex-shrink:0;}
+  .ov-badge.job{background:rgba(31,122,69,.25);color:#4ecf8a;}
+  .ov-badge.done{background:rgba(126,152,171,.2);color:var(--gold-300);}
+  .ov-badge.todo{background:rgba(226,168,58,.2);color:#e2a83a;}
+  .ov-badge.receipt{background:rgba(126,152,171,.15);color:var(--gold-300);}
   .cal-actions{margin:16px 0 0;}
   .cal-actions .pill-btn{
     width:100%;border-color:rgba(226,85,74,.3);color:var(--danger);
@@ -830,6 +842,19 @@
         <button onclick="addTodo()" class="pill-btn primary" style="flex-shrink:0;">Add</button>
       </div>
       <div id="todoList"></div>
+    </div>
+
+    <div class="section" style="margin-top:8px;">
+      <div class="section-head">
+        <h2>📅 Calendar</h2>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button onclick="calNav(-1)" style="background:none;border:none;color:var(--gold-300);font-size:18px;cursor:pointer;padding:0 4px;">‹</button>
+          <span id="calMonthLabel" style="font-size:13px;font-weight:800;color:var(--cream);min-width:110px;text-align:center;"></span>
+          <button onclick="calNav(1)" style="background:none;border:none;color:var(--gold-300);font-size:18px;cursor:pointer;padding:0 4px;">›</button>
+        </div>
+      </div>
+      <div id="overviewCalGrid" style="margin-bottom:8px;"></div>
+      <div id="overviewCalDetail" style="display:none;background:rgba(126,152,171,.1);border-radius:12px;padding:12px 14px;margin-top:6px;"></div>
     </div>
   </div>
 
@@ -2088,6 +2113,7 @@ function renderMaintenance(){
   if(maintenanceTasks.length === 0){
     list.innerHTML = `<div class="empty-state">No maintenance tasks yet.${canEdit() ? '<br>Tap "+ New Task" to add one.' : ''}</div>`;
     renderTodos();
+    renderOverviewCal();
     return;
   }
   const withStatus = maintenanceTasks.map(t => ({ task: t, status: getMaintenanceStatus(t) }));
@@ -2107,6 +2133,95 @@ function renderMaintenance(){
     </div>
   `).join('');
   renderTodos();
+  renderOverviewCal();
+}
+
+let ovCalYear = new Date().getFullYear();
+let ovCalMonth = new Date().getMonth();
+let ovCalSelected = null;
+
+function calNav(dir){
+  ovCalMonth += dir;
+  if(ovCalMonth > 11){ ovCalMonth = 0; ovCalYear++; }
+  if(ovCalMonth < 0){ ovCalMonth = 11; ovCalYear--; }
+  ovCalSelected = null;
+  renderOverviewCal();
+}
+
+function renderOverviewCal(){
+  const grid = document.getElementById('overviewCalGrid');
+  const detail = document.getElementById('overviewCalDetail');
+  if(!grid) return;
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calMonthLabel') && (document.getElementById('calMonthLabel').textContent = ''); // handled below
+  // find the span inside the section (our overview label)
+  const lbl = document.querySelector('#maintenanceView #calMonthLabel');
+  if(lbl) lbl.textContent = monthNames[ovCalMonth] + ' ' + ovCalYear;
+  // fallback — find by querying all matching ids (there's 2)
+  document.querySelectorAll('#calMonthLabel').forEach((el,i) => { if(i===1) el.textContent = monthNames[ovCalMonth] + ' ' + ovCalYear; });
+
+  // Build event map: dateKey (YYYY-MM-DD) -> [{type, label}]
+  const events = {};
+  const addEv = (date, type, label) => {
+    if(!date) return;
+    if(!events[date]) events[date] = [];
+    events[date].push({ type, label });
+  };
+
+  // Scheduled jobs this weekend
+  weekendIds.forEach(id => {
+    const d = weekendDates[id];
+    const c = clients.find(x => x.id === id);
+    if(d && c) addEv(d, 'job', c.name);
+  });
+
+  // Completed jobs
+  completedJobs.forEach(j => addEv(j.completedDate, 'done', j.name + ' ✓'));
+
+  // Receipts
+  receipts.forEach(r => { if(r.receiptDate) addEv(r.receiptDate, 'receipt', (r.company || 'Receipt') + (r.total ? ' $'+Number(r.total).toLocaleString() : '')); });
+
+  // Todos with no date — skip (no date attached)
+
+  const today = new Date().toISOString().slice(0,10);
+  const firstDay = new Date(ovCalYear, ovCalMonth, 1).getDay();
+  const daysInMonth = new Date(ovCalYear, ovCalMonth+1, 0).getDate();
+  const dayHeaders = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  let html = '<div class="cal-grid" style="margin-bottom:6px;">';
+  dayHeaders.forEach(d => html += `<div style="text-align:center;font-size:10px;font-weight:800;color:rgba(251,248,238,.4);padding:2px 0;">${d}</div>`);
+  for(let i=0;i<firstDay;i++) html += '<div class="cal-day empty"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const key = `${ovCalYear}-${String(ovCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const evs = events[key] || [];
+    const isToday = key === today;
+    const isSel = key === ovCalSelected;
+    const dotTypes = [...new Set(evs.map(e=>e.type))];
+    html += `<div class="cal-day${isToday?' today':''}${isSel?' selected':''}" onclick="ovCalSelect('${key}')" style="min-height:42px;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px;">
+      <span style="font-size:12px;">${d}</span>
+      <div class="ov-dots">${dotTypes.map(t=>`<div class="ov-dot ${t}"></div>`).join('')}</div>
+    </div>`;
+  }
+  html += '</div>';
+  grid.innerHTML = html;
+
+  // Show detail for selected day
+  if(ovCalSelected && events[ovCalSelected]){
+    const evs = events[ovCalSelected];
+    const [y,m,dd] = ovCalSelected.split('-');
+    const label = new Date(Number(y),Number(m)-1,Number(dd)).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+    detail.style.display = 'block';
+    detail.innerHTML = `<div style="font-size:12px;font-weight:800;color:var(--gold-300);margin-bottom:8px;">${label}</div>`
+      + evs.map(e=>`<div class="ov-event-row"><span class="ov-badge ${e.type}">${e.type==='job'?'Scheduled':e.type==='done'?'Completed':e.type==='receipt'?'Receipt':'To-do'}</span><span>${escapeHtml(e.label)}</span></div>`).join('');
+  } else {
+    detail.style.display = 'none';
+  }
+}
+
+function ovCalSelect(key){
+  ovCalSelected = ovCalSelected === key ? null : key;
+  renderOverviewCal();
 }
 
 function renderTodos(){
