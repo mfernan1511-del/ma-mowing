@@ -640,6 +640,7 @@
     </div>
     <div class="header-actions">
       <button class="edit-toggle-btn" id="editToggleBtn" onclick="toggleEditMode()" style="display:none;"></button>
+      <button class="lock-btn" id="backupBtn" onclick="openBackupModal()" style="display:none;" title="Backup & Restore">💾</button>
       <button class="lock-btn" id="lockBtn" onclick="onLockClick()">🔒 Locked</button>
     </div>
   </header>
@@ -911,6 +912,29 @@
       <button class="pill-btn" onclick="clearCalendarDate()">Remove from schedule</button>
     </div>
     <button class="modal-close" onclick="closeCalendar()">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="backupOverlay">
+  <div class="modal lightbox-modal">
+    <h3>💾 Backup & Restore</h3>
+    <p style="font-size:13px;color:rgba(251,248,238,.55);margin:-4px 0 16px;">Keep a backup copy of all your data. If anything goes wrong you can restore it in seconds.</p>
+
+    <div style="background:rgba(31,122,69,.15);border:1px solid rgba(31,122,69,.3);border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:800;color:#4ecf8a;margin-bottom:4px;">AUTO-BACKUP STATUS</div>
+      <div id="lastBackupLabel" style="font-size:13px;color:var(--cream);">Never backed up</div>
+    </div>
+
+    <button onclick="downloadBackup()" class="pill-btn primary" style="width:100%;margin-bottom:10px;font-size:14px;padding:12px;">⬇️ Download Backup Now</button>
+
+    <div style="border-top:1px solid rgba(126,152,171,.2);padding-top:12px;margin-top:4px;">
+      <div style="font-size:12px;font-weight:800;color:rgba(251,248,238,.5);margin-bottom:8px;">RESTORE FROM BACKUP FILE</div>
+      <input type="file" id="restoreFileInput" accept=".json" style="display:none" onchange="restoreFromFile(event)">
+      <button onclick="document.getElementById('restoreFileInput').click()" class="pill-btn" style="width:100%;margin-bottom:8px;">📂 Choose Backup File</button>
+      <div id="restoreStatus" style="font-size:12px;color:rgba(251,248,238,.5);text-align:center;"></div>
+    </div>
+
+    <button class="modal-close" onclick="document.getElementById('backupOverlay').classList.remove('show')">Close</button>
   </div>
 </div>
 
@@ -3297,7 +3321,8 @@ function updateLockUI(){
   const btn = document.getElementById('lockBtn');
   btn.textContent = unlocked ? '🔓 Unlocked' : '🔒 Locked';
   btn.classList.toggle('unlocked', unlocked);
-  // edit toggle removed — always editing when unlocked
+  document.getElementById('backupBtn').style.display = unlocked ? 'inline-flex' : 'none';
+  if(unlocked) autoBackup();
 }
 
 function updateEditToggleUI(){
@@ -3411,6 +3436,97 @@ function showGate(){
 function hideGate(){
   document.querySelector('.wrap').style.display = 'block';
   closePinModal();
+}
+
+// ── BACKUP & RESTORE ──────────────────────────────────────────
+function openBackupModal(){
+  const last = localStorage.getItem('ma_last_backup');
+  const el = document.getElementById('lastBackupLabel');
+  if(last){
+    const d = new Date(last);
+    el.textContent = 'Last backup: ' + d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' at ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  } else {
+    el.textContent = 'Never backed up — download one now!';
+    el.style.color = '#e2a83a';
+  }
+  document.getElementById('backupOverlay').classList.add('show');
+}
+
+function buildBackupData(){
+  return {
+    version: 2,
+    exportDate: new Date().toISOString(),
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone,
+    flagNotes, completedJobs, mileageLogs, invoices,
+    recurringClients, messageTemplates, maintenanceTasks,
+    personalTodos, quotes, pin: currentPin
+  };
+}
+
+function downloadBackup(){
+  const data = buildBackupData();
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `MA_Mowing_Backup_${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  localStorage.setItem('ma_last_backup', new Date().toISOString());
+  showToast('Backup downloaded ✅ save it somewhere safe');
+  openBackupModal(); // refresh label
+}
+
+function autoBackup(){
+  // silently save a copy to localStorage as a last-resort fallback
+  try {
+    const data = buildBackupData();
+    localStorage.setItem('ma_auto_backup', JSON.stringify(data));
+    localStorage.setItem('ma_auto_backup_date', new Date().toISOString());
+  } catch(e) { /* storage full — ignore */ }
+}
+
+function restoreFromFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const status = document.getElementById('restoreStatus');
+  status.textContent = 'Reading file…';
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try {
+      const data = JSON.parse(ev.target.result);
+      if(!data.clients || !data.version){ status.textContent = '❌ Invalid backup file'; return; }
+      if(!confirm(`Restore backup from ${data.exportDate ? new Date(data.exportDate).toLocaleDateString() : 'unknown date'}? This will overwrite current data.`)) return;
+      // Write back to Firestore
+      mainDocRef.set({
+        clients: data.clients || [],
+        weekendIds: data.weekendIds || [],
+        weekendDates: data.weekendDates || {},
+        weekendPaid: data.weekendPaid || {},
+        weekendDone: data.weekendDone || {},
+        flagNotes: data.flagNotes || {},
+        completedJobs: data.completedJobs || [],
+        mileageLogs: data.mileageLogs || [],
+        invoices: data.invoices || [],
+        recurringClients: data.recurringClients || [],
+        messageTemplates: data.messageTemplates || [],
+        maintenanceTasks: data.maintenanceTasks || [],
+        personalTodos: data.personalTodos || [],
+        quotes: data.quotes || [],
+        pin: data.pin || currentPin
+      }, { merge: false }).then(() => {
+        status.textContent = '✅ Restored! Reloading…';
+        showToast('Restored from backup ✅');
+        setTimeout(() => location.reload(), 1500);
+      }).catch(() => { status.textContent = '❌ Restore failed — try again'; });
+    } catch(err) {
+      status.textContent = '❌ Could not read file';
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
 }
 
 function onLockClick(){
