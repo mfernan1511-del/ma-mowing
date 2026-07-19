@@ -627,6 +627,22 @@
 <div id="publicQuoteView" style="display:none;">
   <div class="public-quote-wrap">
     <div class="invoice-paper" id="publicQuotePaper"></div>
+    <div id="signatureSection" style="margin-top:20px;background:#fff;border-radius:14px;padding:20px;color:#122029;">
+      <div id="alreadySignedMsg" style="display:none;text-align:center;padding:16px 0;">
+        <div style="font-size:28px;">✅</div>
+        <div style="font-size:16px;font-weight:800;margin-top:6px;">Quote Accepted</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;" id="signedAtLabel"></div>
+      </div>
+      <div id="signPad">
+        <div style="font-size:14px;font-weight:800;margin-bottom:6px;">Sign to Accept Quote</div>
+        <div style="font-size:12px;color:#666;margin-bottom:10px;">Draw your signature below then tap Confirm.</div>
+        <canvas id="sigCanvas" width="320" height="120" style="border:1.5px solid #ccc;border-radius:8px;width:100%;touch-action:none;background:#f9f9f9;display:block;"></canvas>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="clearSig()" style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;font-weight:700;font-size:13px;cursor:pointer;">Clear</button>
+          <button onclick="confirmSig()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1f7a45;color:#fff;font-weight:800;font-size:13px;cursor:pointer;">✅ Confirm & Accept</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 <div class="wrap">
@@ -3673,11 +3689,16 @@ function showToast(msg){
   toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
 }
 
+let _sigQuoteId = null;
+let _sigDrawing = false;
+let _sigHasMark = false;
+
 function tryRenderPublicQuote(){
   const encoded = new URLSearchParams(location.search).get('quote');
   if(!encoded) return false;
   try{
     const payload = JSON.parse(decodeURIComponent(atob(encoded)));
+    _sigQuoteId = payload.id || null;
     document.getElementById('publicQuotePaper').innerHTML = `
       <img class="inv-logo" src="logo.png" alt="M&A Mowing">
       <div class="inv-business">M&amp;A Mowing</div>
@@ -3690,9 +3711,88 @@ function tryRenderPublicQuote(){
     `;
     document.getElementById('publicQuoteView').style.display = 'block';
     document.querySelector('.wrap').style.display = 'none';
+
+    // Check if already signed
+    if(_sigQuoteId){
+      const firebaseConfig = {
+        apiKey:"AIzaSyDnB0-iq-Tctucniyj6PxKkOQQ9oAYbVY0",
+        projectId:"project-1477159610605214064",
+        appId:"1:1088015079144:web:d3a8d93534d7a9e3449b5d"
+      };
+      if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      const db2 = firebase.firestore();
+      db2.collection('signatures').doc(_sigQuoteId).get().then(doc => {
+        if(doc.exists){
+          showSignedState(doc.data().signedAt);
+        } else {
+          initSigCanvas();
+        }
+      }).catch(() => initSigCanvas());
+    } else {
+      initSigCanvas();
+    }
     return true;
   }catch(e){
     return false;
+  }
+}
+
+function showSignedState(signedAt){
+  document.getElementById('signPad').style.display = 'none';
+  document.getElementById('alreadySignedMsg').style.display = 'block';
+  const d = signedAt ? new Date(signedAt) : new Date();
+  document.getElementById('signedAtLabel').textContent = 'Signed on ' + d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+}
+
+function initSigCanvas(){
+  const canvas = document.getElementById('sigCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#122029';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  function getPos(e){
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x:(src.clientX - rect.left)*scaleX, y:(src.clientY - rect.top)*scaleY };
+  }
+  canvas.addEventListener('mousedown', e => { _sigDrawing=true; _sigHasMark=true; ctx.beginPath(); const p=getPos(e); ctx.moveTo(p.x,p.y); });
+  canvas.addEventListener('mousemove', e => { if(!_sigDrawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+  canvas.addEventListener('mouseup', () => _sigDrawing=false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); _sigDrawing=true; _sigHasMark=true; ctx.beginPath(); const p=getPos(e); ctx.moveTo(p.x,p.y); }, {passive:false});
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!_sigDrawing) return; const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); }, {passive:false});
+  canvas.addEventListener('touchend', () => _sigDrawing=false);
+}
+
+function clearSig(){
+  const canvas = document.getElementById('sigCanvas');
+  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  _sigHasMark = false;
+}
+
+function confirmSig(){
+  if(!_sigHasMark){ alert('Please draw your signature first.'); return; }
+  const canvas = document.getElementById('sigCanvas');
+  const sigDataURL = canvas.toDataURL();
+  const signedAt = new Date().toISOString();
+
+  if(_sigQuoteId){
+    const firebaseConfig = {
+      apiKey:"AIzaSyDnB0-iq-Tctucniyj6PxKkOQQ9oAYbVY0",
+      projectId:"project-1477159610605214064",
+      appId:"1:1088015079144:web:d3a8d93534d7a9e3449b5d"
+    };
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db2 = firebase.firestore();
+    db2.collection('signatures').doc(_sigQuoteId).set({ sigDataURL, signedAt, quoteId: _sigQuoteId })
+      .then(() => showSignedState(signedAt))
+      .catch(() => alert('Could not save signature — please try again.'));
+  } else {
+    showSignedState(signedAt);
   }
 }
 
