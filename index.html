@@ -3175,6 +3175,8 @@ function saveNewQuote(){
   showToast('Quote created 📋');
 }
 
+let _quoteSignatures = {}; // { quoteId: { signedAt, sigDataURL } }
+
 function renderQuotes(){
   document.getElementById('quoteControls').style.display = canEdit() ? 'flex' : 'none';
   document.getElementById('quotesCount').textContent = quotes.length + ' total';
@@ -3184,15 +3186,59 @@ function renderQuotes(){
     return;
   }
   const sorted = [...quotes].sort((a,b) => b.date.localeCompare(a.date));
-  list.innerHTML = sorted.map(q => `
+  list.innerHTML = sorted.map(q => {
+    const sig = _quoteSignatures[q.id];
+    const sigBadge = sig
+      ? `<div style="font-size:11px;color:#4caf7d;font-weight:700;margin-top:2px;">✅ Signed ${new Date(sig.signedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>`
+      : '';
+    const sigBtn = sig
+      ? `<button onclick="event.stopPropagation();viewSignature('${q.id}')" style="font-size:11px;padding:4px 8px;border:1px solid #4caf7d;border-radius:6px;background:transparent;color:#4caf7d;font-weight:700;cursor:pointer;white-space:nowrap;">View Sig</button>`
+      : '';
+    return `
     <div class="profile-invoice-row" onclick="openQuoteView('${q.id}')">
-      <div>
+      <div style="flex:1;">
         <div class="pi-desc">${escapeHtml(q.customerName)} — ${escapeHtml(q.description)}</div>
         <div class="pi-date">${formatDateShort(q.date)} · #${q.quoteNumber}</div>
+        ${sigBadge}
       </div>
-      <div class="pi-amount">$${Number(q.amount).toLocaleString()}</div>
-    </div>
-  `).join('');
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        <div class="pi-amount">$${Number(q.amount).toLocaleString()}</div>
+        ${sigBtn}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Load signatures from Firestore
+  if(typeof db !== 'undefined' && quotes.length){
+    quotes.forEach(q => {
+      db.collection('signatures').doc(q.id).get().then(doc => {
+        if(doc.exists){
+          _quoteSignatures[q.id] = doc.data();
+          renderQuotes();
+        }
+      }).catch(()=>{});
+    });
+  }
+}
+
+function viewSignature(quoteId){
+  const sig = _quoteSignatures[quoteId];
+  if(!sig) return;
+  const q = quotes.find(x => x.id === quoteId);
+  const d = new Date(sig.signedAt).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay show';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:340px;">
+      <h3>✅ Signed Quote</h3>
+      <div style="font-size:14px;font-weight:700;margin-bottom:2px;">${q ? escapeHtml(q.customerName) : ''}</div>
+      <div style="font-size:12px;opacity:.6;margin-bottom:14px;">${d}</div>
+      <div style="background:#f9f9f9;border-radius:10px;padding:10px;text-align:center;">
+        <img src="${sig.sigDataURL}" style="max-width:100%;border-radius:6px;" alt="Signature">
+      </div>
+      <button class="modal-close" onclick="this.closest('.overlay').remove()">Close</button>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 function buildQuotePaperHTML(q){
