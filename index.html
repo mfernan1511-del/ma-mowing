@@ -3227,6 +3227,7 @@ function saveNewQuote(){
 }
 
 let _quoteSignatures = {}; // { quoteId: { signedAt, sigDataURL } }
+let _quoteSigsFetched = false;
 
 function renderQuotes(){
   document.getElementById('quoteControls').style.display = canEdit() ? 'flex' : 'none';
@@ -3259,15 +3260,17 @@ function renderQuotes(){
     </div>`;
   }).join('');
 
-  // Load signatures from Firestore
-  if(typeof db !== 'undefined' && quotes.length){
-    quotes.forEach(q => {
-      db.collection('signatures').doc(q.id).get().then(doc => {
-        if(doc.exists){
-          _quoteSignatures[q.id] = doc.data();
-          renderQuotes();
-        }
-      }).catch(()=>{});
+  // Load signatures from Firestore (only once per session)
+  if(!_quoteSigsFetched && typeof db !== 'undefined' && quotes.length){
+    _quoteSigsFetched = true;
+    Promise.all(quotes.map(q =>
+      db.collection('signatures').doc(q.id).get()
+        .then(doc => { if(doc.exists) _quoteSignatures[q.id] = doc.data(); })
+        .catch(()=>{})
+    )).then(() => {
+      // re-render once after all fetches done
+      const list = document.getElementById('quotesList');
+      if(list) renderQuotes();
     });
   }
 }
