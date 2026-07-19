@@ -1142,7 +1142,10 @@
   <div class="modal">
     <h3>📋 New Quote</h3>
     <label class="receipt-field-label">Customer Name</label>
-    <input type="text" id="quoteNameInput" class="receipt-input" placeholder="e.g. Jane Smith">
+    <div style="position:relative;">
+      <input type="text" id="quoteNameInput" class="receipt-input" placeholder="e.g. Jane Smith" oninput="quoteNameSuggest()" autocomplete="off">
+      <div id="quoteNameDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1a3a4a;border:1px solid rgba(255,255,255,.15);border-radius:8px;z-index:999;max-height:180px;overflow-y:auto;"></div>
+    </div>
     <label class="receipt-field-label">Phone</label>
     <input type="tel" id="quotePhoneInput" class="receipt-input" placeholder="(555) 555-5555">
     <label class="receipt-field-label">Email</label>
@@ -3120,7 +3123,31 @@ function openQuoteCreate(){
   document.getElementById('quoteEmailInput').value = '';
   document.getElementById('quoteDescInput').value = '';
   document.getElementById('quoteAmountInput').value = '';
+  document.getElementById('quoteNameDropdown').style.display = 'none';
   document.getElementById('quoteCreateOverlay').classList.add('show');
+}
+
+function quoteNameSuggest(){
+  const val = document.getElementById('quoteNameInput').value.toLowerCase().trim();
+  const dd = document.getElementById('quoteNameDropdown');
+  if(!val){ dd.style.display='none'; return; }
+  const matches = clients.filter(c => c.name.toLowerCase().includes(val));
+  if(!matches.length){ dd.style.display='none'; return; }
+  dd.innerHTML = matches.map(c => `
+    <div onclick="quotePickClient('${c.id}')" style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid rgba(255,255,255,.08);">
+      <div style="font-weight:700;">${c.name}</div>
+      ${c.phone ? `<div style="font-size:12px;opacity:.6;">${c.phone}</div>` : ''}
+    </div>`).join('');
+  dd.style.display = 'block';
+}
+
+function quotePickClient(id){
+  const c = clients.find(x => x.id === id);
+  if(!c) return;
+  document.getElementById('quoteNameInput').value = c.name;
+  document.getElementById('quotePhoneInput').value = c.phone || '';
+  document.getElementById('quoteEmailInput').value = c.email || '';
+  document.getElementById('quoteNameDropdown').style.display = 'none';
 }
 
 function closeQuoteCreate(){
