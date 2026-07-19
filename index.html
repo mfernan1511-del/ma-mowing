@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>M&A Mowing — Weekend Crew Tracker</title>
+<title>M&A Mowing</title>
+<meta property="og:title" content="M&A Mowing Quote">
+<meta property="og:description" content="View and sign your quote from M&A Mowing">
+<meta property="og:site_name" content="M&A Mowing">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌿</text></svg>">
 <style>
   :root{
@@ -3873,6 +3876,7 @@ function tryRenderPublicQuote(){
         </div>`).join('') : `<div class="inv-desc-line"><span>${escapeHtml(payload.desc||'')}</span><span>$${Number(payload.amount).toLocaleString()}</span></div>`}
       <div class="inv-total-row"><span>Quoted Price</span><span>$${Number(payload.amount).toLocaleString()}</span></div>
     `;
+    document.title = 'Quote for ' + payload.name + ' — M&A Mowing';
     document.getElementById('publicQuoteView').style.display = 'block';
     document.querySelector('.wrap').style.display = 'none';
 
