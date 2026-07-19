@@ -3325,7 +3325,7 @@ function buildQuoteItemsHTML(q){
 
 function buildQuoteShareURL(q){
   const payload = {
-    n: q.quoteNumber, name: q.customerName,
+    id: q.id, n: q.quoteNumber, name: q.customerName,
     items: q.items || null, desc: q.description || null,
     amount: q.amount, date: q.date
   };
