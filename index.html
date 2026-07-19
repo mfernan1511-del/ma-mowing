@@ -3496,12 +3496,28 @@ function downloadBackup(){
 }
 
 function autoBackup(){
-  // silently save a copy to localStorage as a last-resort fallback
   try {
     const data = buildBackupData();
     localStorage.setItem('ma_auto_backup', JSON.stringify(data));
     localStorage.setItem('ma_auto_backup_date', new Date().toISOString());
   } catch(e) { /* storage full — ignore */ }
+
+  // Once per day, trigger native share sheet so user can save to iCloud Drive / Google Drive / Files
+  const today = new Date().toDateString();
+  const lastShare = localStorage.getItem('ma_auto_share_date');
+  if(lastShare === today) return;
+  if(!navigator.canShare) return; // not supported on this device/browser
+
+  try {
+    const json = JSON.stringify(buildBackupData(), null, 2);
+    const file = new File([json], `ma-mowing-backup-${today.replace(/ /g,'-')}.json`, { type: 'application/json' });
+    if(!navigator.canShare({ files: [file] })) return;
+    localStorage.setItem('ma_auto_share_date', today);
+    // small delay so the unlock animation finishes first
+    setTimeout(() => {
+      navigator.share({ title: 'M&A Mowing Backup', files: [file] }).catch(() => {});
+    }, 800);
+  } catch(e) {}
 }
 
 function restoreFromFile(e){
