@@ -1894,7 +1894,7 @@ function renderRevenue(){
   const currentYear = new Date().getFullYear();
   document.getElementById('revenueYearLabel').textContent = currentYear + ' Revenue';
   const yearJobs = completedJobs.filter(j => new Date(j.completedDate).getFullYear() === currentYear);
-  const total = yearJobs.reduce((s,j) => s + Number(j.price), 0);
+  const total = 3600 + yearJobs.reduce((s,j) => s + Number(j.price), 0);
   document.getElementById('revenueTotalDisplay').textContent = '$' + total.toLocaleString();
   document.getElementById('revenueJobCount').textContent = yearJobs.length;
   document.getElementById('completedCount').textContent = completedJobs.length + ' total';
