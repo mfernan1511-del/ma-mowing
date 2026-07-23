@@ -1027,6 +1027,14 @@
       <input type="email" id="profileEmailInput" class="receipt-input" placeholder="customer@email.com">
       <label class="receipt-field-label">Address</label>
       <input type="text" id="profileAddressInput" class="receipt-input" placeholder="123 Main St">
+      <label class="receipt-field-label">Neighborhood</label>
+      <select id="profileNeighborhoodInput" class="receipt-input">
+        <option value="">— None —</option>
+        <option value="Association">Association</option>
+        <option value="Back Lake">Back Lake</option>
+        <option value="Front Lake">Front Lake</option>
+        <option value="Cul-de-sac">Cul-de-sac</option>
+      </select>
       <label class="receipt-field-label">Notes</label>
       <textarea id="profileNotesInput" class="receipt-input" rows="3" placeholder="Gate code, dog in yard, etc."></textarea>
       <button class="pill-btn primary" style="width:100%;margin-top:10px;" onclick="saveProfileEdit()">Save Changes</button>
@@ -2825,7 +2833,8 @@ function initWeekendSort(){
   });
 }
 
-let _collapsedRosterLetters = {};
+const NEIGHBORHOODS = ['Association', 'Back Lake', 'Front Lake', 'Cul-de-sac'];
+let _collapsedRosterGroups = {};
 
 function renderRoster(){
   const list = document.getElementById('rosterList');
@@ -2834,15 +2843,25 @@ function renderRoster(){
     return;
   }
   const sorted = [...clients].sort((a,b) => a.name.localeCompare(b.name));
+  // Group by neighborhood; ungrouped go to 'Other'
   const groups = {};
+  NEIGHBORHOODS.forEach(n => groups[n] = []);
+  groups['Other'] = [];
   sorted.forEach(c => {
-    const letter = c.name.trim()[0].toUpperCase();
-    if(!groups[letter]) groups[letter] = [];
-    groups[letter].push(c);
+    const key = NEIGHBORHOODS.includes(c.neighborhood) ? c.neighborhood : 'Other';
+    groups[key].push(c);
   });
-  list.innerHTML = Object.keys(groups).sort().map(letter => {
-    const collapsed = _collapsedRosterLetters[letter];
-    const cards = groups[letter].map(c => {
+  const groupKeys = [...NEIGHBORHOODS, 'Other'].filter(k => groups[k].length > 0);
+
+  const groupColors = {
+    'Association': '#f4a261', 'Back Lake': '#4cc9f0',
+    'Front Lake': '#4caf7d', 'Cul-de-sac': '#c77dff', 'Other': '#adb5bd'
+  };
+
+  list.innerHTML = groupKeys.map(key => {
+    const collapsed = _collapsedRosterGroups[key];
+    const color = groupColors[key] || '#adb5bd';
+    const cards = groups[key].map(c => {
       const inWeekend = weekendIds.includes(c.id);
       const dateLabel = inWeekend && weekendDates[c.id] ? formatDateShort(weekendDates[c.id]) : (inWeekend ? 'scheduled' : '');
       return `
@@ -2859,9 +2878,12 @@ function renderRoster(){
     }).join('');
     return `
     <div style="margin-bottom:8px;">
-      <div onclick="toggleRosterLetter('${letter}')" style="display:flex;align-items:center;gap:10px;padding:8px 4px;cursor:pointer;user-select:none;">
-        <div style="width:32px;height:32px;border-radius:50%;background:rgba(76,175,125,.2);border:1px solid rgba(76,175,125,.3);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#4caf7d;flex-shrink:0;">${letter}</div>
-        <span style="font-size:13px;font-weight:700;opacity:.7;">${groups[letter].length} client${groups[letter].length > 1 ? 's' : ''}</span>
+      <div onclick="toggleRosterGroup('${key}')" style="display:flex;align-items:center;gap:10px;padding:8px 4px;cursor:pointer;user-select:none;">
+        <div style="width:32px;height:32px;border-radius:50%;background:${color}22;border:1px solid ${color}55;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:${color};flex-shrink:0;">📍</div>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:${color};">${key}</div>
+          <div style="font-size:11px;opacity:.6;">${groups[key].length} client${groups[key].length > 1 ? 's' : ''}</div>
+        </div>
         <span style="margin-left:auto;font-size:14px;opacity:.5;">${collapsed ? '▶' : '▼'}</span>
       </div>
       <div style="display:${collapsed ? 'none' : 'block'};">${cards}</div>
@@ -2869,8 +2891,8 @@ function renderRoster(){
   }).join('');
 }
 
-function toggleRosterLetter(letter){
-  _collapsedRosterLetters[letter] = !_collapsedRosterLetters[letter];
+function toggleRosterGroup(key){
+  _collapsedRosterGroups[key] = !_collapsedRosterGroups[key];
   renderRoster();
 }
 
@@ -2980,6 +3002,7 @@ function openProfile(id){
     document.getElementById('profilePhoneInput').value = c.phone || '';
     document.getElementById('profileEmailInput').value = c.email || '';
     document.getElementById('profileAddressInput').value = c.address || '';
+    document.getElementById('profileNeighborhoodInput').value = c.neighborhood || '';
     document.getElementById('profileNotesInput').value = c.notes || '';
     document.getElementById('profileNewInvoiceBtn').style.display = 'inline-block';
   } else {
@@ -3015,6 +3038,7 @@ function saveProfileEdit(){
   c.phone = document.getElementById('profilePhoneInput').value.trim();
   c.email = document.getElementById('profileEmailInput').value.trim();
   c.address = document.getElementById('profileAddressInput').value.trim();
+  c.neighborhood = document.getElementById('profileNeighborhoodInput').value;
   c.notes = document.getElementById('profileNotesInput').value.trim();
   syncMainDoc();
   closeProfile();
