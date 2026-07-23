@@ -462,6 +462,8 @@
   .ov-badge.done{background:rgba(126,152,171,.2);color:var(--gold-300);}
   .ov-badge.todo{background:rgba(226,168,58,.2);color:#e2a83a;}
   .ov-badge.receipt{background:rgba(126,152,171,.15);color:var(--gold-300);}
+  .ov-dot.personal{background:#c77dff;}
+  .ov-badge.personal{background:rgba(199,125,255,.2);color:#c77dff;}
   .cal-actions{margin:16px 0 0;}
   .cal-actions .pill-btn{
     width:100%;border-color:rgba(226,85,74,.3);color:var(--danger);
@@ -1163,6 +1165,18 @@
   </div>
 </div>
 
+<div class="overlay" id="personalEventOverlay">
+  <div class="modal">
+    <h3>📅 Add Personal Event</h3>
+    <label class="receipt-field-label">Date</label>
+    <input type="date" id="personalEventDateInput" class="receipt-input">
+    <label class="receipt-field-label">What is it?</label>
+    <input type="text" id="personalEventTitleInput" class="receipt-input" placeholder="e.g. Doctor appointment, birthday...">
+    <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="savePersonalEvent()">Save</button>
+    <button class="modal-close" onclick="document.getElementById('personalEventOverlay').classList.remove('show')">Cancel</button>
+  </div>
+</div>
+
 <div class="overlay" id="moveClientOverlay">
   <div class="modal">
     <h3>📅 Move to Another Date</h3>
@@ -1269,6 +1283,7 @@ let recurringClients = []; // [{ id, name, amount }]
 let messageTemplates = []; // [{ id, label, text }]
 let maintenanceTasks = []; // [{ id, name, type, intervalMiles/intervalDays, lastDoneMileage/lastDoneDate }]
 let personalTodos = []; // [{ id, text, done }]
+let personalEvents = []; // [{ id, date, title }]
 let quotes = []; // [{ id, quoteNumber, customerName, phone, email, description, amount, date }]
 let activeQuoteId = null;
 let selectedMessageId = null;
@@ -1348,6 +1363,7 @@ async function init(){
     messageTemplates = d.messageTemplates || [];
     maintenanceTasks = d.maintenanceTasks || [];
     personalTodos = d.personalTodos || [];
+    personalEvents = d.personalEvents || [];
     quotes = d.quotes || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
@@ -1379,7 +1395,7 @@ async function init(){
 function syncMainDoc(){
   if(!firstSnapshotLoaded) return; // don't overwrite real data before it has loaded
   mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, quotes, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, quotes, pin: currentPin
   }, { merge: true });
 }
 
@@ -2284,7 +2300,8 @@ function renderOverviewCal(){
   // Receipts
   receipts.forEach(r => { if(r.receiptDate) addEv(r.receiptDate, 'receipt', (r.company || 'Receipt') + (r.total ? ' $'+Number(r.total).toLocaleString() : '')); });
 
-  // Todos with no date — skip (no date attached)
+  // Personal events
+  personalEvents.forEach(e => addEv(e.date, 'personal', e.title));
 
   const today = new Date().toISOString().slice(0,10);
   const firstDay = new Date(ovCalYear, ovCalMonth, 1).getDay();
@@ -2309,20 +2326,53 @@ function renderOverviewCal(){
   grid.innerHTML = html;
 
   // Show detail for selected day
-  if(ovCalSelected && events[ovCalSelected]){
-    const evs = events[ovCalSelected];
+  if(ovCalSelected){
+    const evs = events[ovCalSelected] || [];
     const [y,m,dd] = ovCalSelected.split('-');
     const label = new Date(Number(y),Number(m)-1,Number(dd)).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+    const typeLabel = { job:'Scheduled', done:'Completed', receipt:'Receipt', todo:'To-do', personal:'Personal' };
     detail.style.display = 'block';
-    detail.innerHTML = `<div style="font-size:12px;font-weight:800;color:var(--gold-300);margin-bottom:8px;">${label}</div>`
-      + evs.map(e=>`<div class="ov-event-row"><span class="ov-badge ${e.type}">${e.type==='job'?'Scheduled':e.type==='done'?'Completed':e.type==='receipt'?'Receipt':'To-do'}</span><span>${escapeHtml(e.label)}</span></div>`).join('');
+    detail.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:800;color:var(--gold-300);">${label}</div>
+        <button onclick="openAddPersonalEvent('${ovCalSelected}')" style="font-size:11px;padding:4px 10px;border:none;border-radius:8px;background:rgba(76,175,125,.2);color:#4caf7d;font-weight:800;cursor:pointer;">＋ Add</button>
+      </div>`
+      + (evs.length ? evs.map(e=>`
+        <div class="ov-event-row">
+          <span class="ov-badge ${e.type}">${typeLabel[e.type]||e.type}</span>
+          <span style="flex:1;">${escapeHtml(e.label)}</span>
+          ${e.type==='personal' ? `<button onclick="deletePersonalEvent('${e.id}')" style="background:transparent;border:none;color:rgba(255,100,100,.6);font-size:14px;cursor:pointer;">✕</button>` : ''}
+        </div>`).join('') : `<div style="font-size:12px;opacity:.5;padding:6px 0;">No events — tap + Add to add one.</div>`);
   } else {
     detail.style.display = 'none';
   }
 }
 
 function ovCalSelect(key){
-  ovCalSelected = ovCalSelected === key ? null : key;
+  ovCalSelected = key;
+  renderOverviewCal();
+}
+
+function openAddPersonalEvent(date){
+  document.getElementById('personalEventDateInput').value = date;
+  document.getElementById('personalEventTitleInput').value = '';
+  document.getElementById('personalEventOverlay').classList.add('show');
+}
+
+function savePersonalEvent(){
+  const date = document.getElementById('personalEventDateInput').value;
+  const title = document.getElementById('personalEventTitleInput').value.trim();
+  if(!date || !title){ showToast('Enter a title'); return; }
+  personalEvents.push({ id: 'pe' + Date.now(), date, title });
+  syncMainDoc();
+  document.getElementById('personalEventOverlay').classList.remove('show');
+  showToast('Event added ✓');
+  renderOverviewCal();
+}
+
+function deletePersonalEvent(id){
+  personalEvents = personalEvents.filter(e => e.id !== id);
+  syncMainDoc();
   renderOverviewCal();
 }
 
