@@ -648,6 +648,16 @@
     </div>
   </div>
 </div>
+<div id="appLoadingScreen" style="position:fixed;inset:0;background:#0a1518;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;">
+  <div style="font-size:48px;margin-bottom:16px;">🌿</div>
+  <div style="font-size:18px;font-weight:800;color:#fbf8ee;letter-spacing:.5px;">M&A Mowing</div>
+  <div style="margin-top:20px;width:40px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;">
+    <div style="height:100%;background:#4caf7d;border-radius:2px;animation:loadBar 1.2s ease-in-out infinite;"></div>
+  </div>
+</div>
+<style>
+@keyframes loadBar{0%{width:0%;margin-left:0}50%{width:100%;margin-left:0}100%{width:0%;margin-left:100%}}
+</style>
 <div class="wrap">
 
   <header class="app-header">
@@ -1318,6 +1328,8 @@ async function init(){
     quotes = d.quotes || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
+    const loadScreen = document.getElementById('appLoadingScreen');
+    if(loadScreen) loadScreen.style.display = 'none';
     checkRecurringRevenue();
     render();
     if(activeTab === 'revenue') renderRevenue();
