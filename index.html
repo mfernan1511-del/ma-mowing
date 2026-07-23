@@ -1154,6 +1154,17 @@
   </div>
 </div>
 
+<div class="overlay" id="moveClientOverlay">
+  <div class="modal">
+    <h3>📅 Move to Another Date</h3>
+    <div id="moveClientName" style="font-weight:700;font-size:15px;margin-bottom:14px;"></div>
+    <label class="receipt-field-label">Pick a new date</label>
+    <input type="date" id="moveClientDateInput" class="receipt-input">
+    <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="confirmMoveClient()">Move</button>
+    <button class="modal-close" onclick="document.getElementById('moveClientOverlay').classList.remove('show')">Cancel</button>
+  </div>
+</div>
+
 <div class="overlay" id="quoteCreateOverlay">
   <div class="modal">
     <h3>📋 New Quote</h3>
@@ -2655,10 +2666,11 @@ function renderWeekend(){
               ` : ''}
             </div>
           </div>
-          <div class="card-bottom">
-            <button class="done-yard-btn ${isDone ? 'is-done' : ''}" onclick="toggleDoneToday('${c.id}')">
+          <div class="card-bottom" style="display:flex;gap:8px;">
+            <button class="done-yard-btn ${isDone ? 'is-done' : ''}" onclick="toggleDoneToday('${c.id}')" style="flex:1;">
               ${isDone ? '✓ Done' : 'Done'}
             </button>
+            ${canEdit() ? `<button onclick="openMoveClient('${c.id}')" style="flex:1;padding:10px;border:none;border-radius:10px;background:rgba(100,150,255,.15);color:#6496ff;font-weight:800;font-size:13px;cursor:pointer;">📅 Move</button>` : ''}
           </div>
         </div>
       </div>
@@ -2671,6 +2683,25 @@ function renderWeekend(){
   attachSwipeHandlers();
 
   initWeekendSort();
+}
+
+let _moveClientId = null;
+function openMoveClient(id){
+  if(!canEdit()) return;
+  _moveClientId = id;
+  const c = clients.find(x => x.id === id);
+  document.getElementById('moveClientName').textContent = c ? c.name : '';
+  document.getElementById('moveClientDateInput').value = weekendDates[id] || new Date().toISOString().slice(0,10);
+  document.getElementById('moveClientOverlay').classList.add('show');
+}
+function confirmMoveClient(){
+  const date = document.getElementById('moveClientDateInput').value;
+  if(!date || !_moveClientId) return;
+  weekendDates[_moveClientId] = date;
+  syncMainDoc();
+  document.getElementById('moveClientOverlay').classList.remove('show');
+  showToast('Moved ✓');
+  render();
 }
 
 function toggleDoneToday(id){
