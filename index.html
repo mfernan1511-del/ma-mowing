@@ -2835,65 +2835,84 @@ function initWeekendSort(){
 }
 
 const NEIGHBORHOODS = ['Association', 'Back Lake', 'Front Lake', 'Cul-de-sac'];
-let _collapsedRosterGroups = {};
+const HOOD_COLORS = { 'Association':'#f4a261','Back Lake':'#4cc9f0','Front Lake':'#4caf7d','Cul-de-sac':'#c77dff','Other':'#adb5bd' };
+let _collapsedRosterHoods = {};   // { 'Back Lake': true }
+let _collapsedRosterLetters = {}; // { 'Back Lake|A': true }
 
 function renderRoster(){
   const list = document.getElementById('rosterList');
-  if(clients.length === 0){
-    list.innerHTML = `<div class="empty-state">No clients yet.</div>`;
-    return;
-  }
+  if(clients.length === 0){ list.innerHTML = `<div class="empty-state">No clients yet.</div>`; return; }
+
   const sorted = [...clients].sort((a,b) => a.name.localeCompare(b.name));
-  // Group by neighborhood; ungrouped go to 'Other'
-  const groups = {};
-  NEIGHBORHOODS.forEach(n => groups[n] = []);
-  groups['Other'] = [];
+
+  // Group by neighborhood
+  const hoodMap = {};
+  [...NEIGHBORHOODS, 'Other'].forEach(n => hoodMap[n] = []);
   sorted.forEach(c => {
     const key = NEIGHBORHOODS.includes(c.neighborhood) ? c.neighborhood : 'Other';
-    groups[key].push(c);
+    hoodMap[key].push(c);
   });
-  const groupKeys = [...NEIGHBORHOODS, 'Other'].filter(k => groups[k].length > 0);
 
-  const groupColors = {
-    'Association': '#f4a261', 'Back Lake': '#4cc9f0',
-    'Front Lake': '#4caf7d', 'Cul-de-sac': '#c77dff', 'Other': '#adb5bd'
-  };
+  list.innerHTML = [...NEIGHBORHOODS, 'Other'].filter(h => hoodMap[h].length).map(hood => {
+    const color = HOOD_COLORS[hood];
+    const hoodCollapsed = _collapsedRosterHoods[hood];
 
-  list.innerHTML = groupKeys.map(key => {
-    const collapsed = _collapsedRosterGroups[key];
-    const color = groupColors[key] || '#adb5bd';
-    const cards = groups[key].map(c => {
-      const inWeekend = weekendIds.includes(c.id);
-      const dateLabel = inWeekend && weekendDates[c.id] ? formatDateShort(weekendDates[c.id]) : (inWeekend ? 'scheduled' : '');
+    // Sub-group by first letter
+    const letterMap = {};
+    hoodMap[hood].forEach(c => {
+      const l = c.name.trim()[0].toUpperCase();
+      if(!letterMap[l]) letterMap[l] = [];
+      letterMap[l].push(c);
+    });
+
+    const lettersHtml = Object.keys(letterMap).sort().map(letter => {
+      const lKey = hood + '|' + letter;
+      const lCollapsed = _collapsedRosterLetters[lKey];
+      const cards = letterMap[letter].map(c => {
+        const inWeekend = weekendIds.includes(c.id);
+        const dateLabel = inWeekend && weekendDates[c.id] ? formatDateShort(weekendDates[c.id]) : (inWeekend ? 'scheduled' : '');
+        return `
+        <div class="client-card ${inWeekend ? 'in-weekend' : ''}">
+          <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
+            <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''} ${inWeekend ? `<span class="badge">${dateLabel}</span>` : ''}</div>
+            <div class="price">$${Number(c.price).toLocaleString()}</div>
+          </div>
+          <div class="actions">
+            <button class="icon-btn profile" onclick="openProfile('${c.id}')" title="View profile">👤</button>
+            ${canEdit() ? `<button class="icon-btn delete" onclick="deleteClient('${c.id}')" title="Delete client">🗑</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
       return `
-      <div class="client-card ${inWeekend ? 'in-weekend' : ''}">
-        <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
-          <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''} ${inWeekend ? `<span class="badge">${dateLabel}</span>` : ''}</div>
-          <div class="price">$${Number(c.price).toLocaleString()}</div>
+      <div style="margin-bottom:6px;">
+        <div onclick="toggleRosterLetter('${lKey}')" style="display:flex;align-items:center;gap:10px;padding:6px 4px 6px 12px;cursor:pointer;user-select:none;">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fbf8ee;flex-shrink:0;">${letter}</div>
+          <span style="font-size:12px;font-weight:700;opacity:.6;">${letterMap[letter].length} client${letterMap[letter].length>1?'s':''}</span>
+          <span style="margin-left:auto;font-size:12px;opacity:.4;">${lCollapsed ? '▶' : '▼'}</span>
         </div>
-        <div class="actions">
-          <button class="icon-btn profile" onclick="openProfile('${c.id}')" title="View profile">👤</button>
-          ${canEdit() ? `<button class="icon-btn delete" onclick="deleteClient('${c.id}')" title="Delete client">🗑</button>` : ''}
-        </div>
+        <div style="display:${lCollapsed ? 'none' : 'block'};">${cards}</div>
       </div>`;
     }).join('');
+
     return `
-    <div style="margin-bottom:8px;">
-      <div onclick="toggleRosterGroup('${key}')" style="display:flex;align-items:center;gap:10px;padding:8px 4px;cursor:pointer;user-select:none;">
-        <div style="width:32px;height:32px;border-radius:50%;background:${color}22;border:1px solid ${color}55;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:${color};flex-shrink:0;">📍</div>
-        <div>
-          <div style="font-size:14px;font-weight:800;color:${color};">${key}</div>
-          <div style="font-size:11px;opacity:.6;">${groups[key].length} client${groups[key].length > 1 ? 's' : ''}</div>
-        </div>
-        <span style="margin-left:auto;font-size:14px;opacity:.5;">${collapsed ? '▶' : '▼'}</span>
+    <div style="margin-bottom:12px;">
+      <div onclick="toggleRosterHood('${hood}')" style="display:flex;align-items:center;gap:10px;padding:10px 6px;cursor:pointer;user-select:none;border-bottom:2px solid ${color}44;margin-bottom:6px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+        <div style="font-size:15px;font-weight:800;color:${color};">${hood}</div>
+        <span style="font-size:12px;opacity:.5;">${hoodMap[hood].length} clients</span>
+        <span style="margin-left:auto;font-size:14px;opacity:.5;">${hoodCollapsed ? '▶' : '▼'}</span>
       </div>
-      <div style="display:${collapsed ? 'none' : 'block'};">${cards}</div>
+      <div style="display:${hoodCollapsed ? 'none' : 'block'};">${lettersHtml}</div>
     </div>`;
   }).join('');
 }
 
-function toggleRosterGroup(key){
-  _collapsedRosterGroups[key] = !_collapsedRosterGroups[key];
+function toggleRosterHood(hood){
+  _collapsedRosterHoods[hood] = !_collapsedRosterHoods[hood];
+  renderRoster();
+}
+function toggleRosterLetter(lKey){
+  _collapsedRosterLetters[lKey] = !_collapsedRosterLetters[lKey];
   renderRoster();
 }
 
