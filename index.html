@@ -1302,6 +1302,7 @@ let weekendDone = {}; // { clientId: true/false } - swiped "done for today" mark
 let flagNotes = {}; // { clientId: 'note text' } - ⭐ extra task reminder per client
 let completedJobs = []; // [{ id, clientId, name, price, scheduledDate, completedDate }]
 let revenueCondensed = false;
+let _collapsedRevDates = {};
 let mileageCondensed = false;
 let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
@@ -2130,25 +2131,32 @@ function renderRevenue(){
         const dt = new Date(Number(y), Number(m)-1, Number(d));
         return dt.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
       })();
+      const collapsed = _collapsedRevDates[g.date];
       return `
-        <div style="margin-bottom:${revenueCondensed ? '6px' : '18px'};">
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 2px 8px;border-bottom:1px solid rgba(126,152,171,.2);${revenueCondensed ? '' : 'margin-bottom:6px;'}">
-            <span style="font-size:13px;font-weight:800;color:var(--gold-300);">${label}</span>
-            <span style="font-size:13px;font-weight:800;color:var(--cream);">$${dayTotal.toLocaleString()} <span style="font-weight:500;opacity:.6;font-size:11px;">(${g.jobs.length} job${g.jobs.length===1?'':'s'})</span></span>
-          </div>
-          ${revenueCondensed ? '' : g.jobs.map(j => `
-            <div class="completed-row">
-              <div class="info">
-                <div class="name">${escapeHtml(j.name)} ${j.paid ? '<span class="badge">paid</span>' : ''}</div>
-              </div>
-              <div class="row-actions">
-                <div class="price">$${Number(j.price).toLocaleString()}</div>
-                ${canEdit() ? `<button class="icon-btn delete" onclick="deleteCompletedJob('${j.id}')" title="Remove">🗑</button>` : ''}
-              </div>
+        <div style="margin-bottom:10px;">
+          <div onclick="toggleRevDate('${g.date}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(255,255,255,.06);border-radius:10px;cursor:pointer;user-select:none;">
+            <div>
+              <div style="font-size:14px;font-weight:800;color:var(--gold-300);">${label}</div>
+              <div style="font-size:11px;opacity:.5;margin-top:1px;">${g.jobs.length} job${g.jobs.length===1?'':'s'}</div>
             </div>
-          `).join('')}
-        </div>
-      `;
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:15px;font-weight:900;color:var(--cream);">$${dayTotal.toLocaleString()}</span>
+              <span style="font-size:12px;opacity:.4;">${collapsed ? '▶' : '▼'}</span>
+            </div>
+          </div>
+          <div style="display:${collapsed ? 'none' : 'block'};padding:4px 0 0;">
+            ${g.jobs.map(j => `
+              <div class="completed-row">
+                <div class="info">
+                  <div class="name">${escapeHtml(j.name)} ${j.paid ? '<span class="badge">paid</span>' : ''}</div>
+                </div>
+                <div class="row-actions">
+                  <div class="price">$${Number(j.price).toLocaleString()}</div>
+                  ${canEdit() ? `<button class="icon-btn delete" onclick="deleteCompletedJob('${j.id}')" title="Remove">🗑</button>` : ''}
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
     }).join('');
   }
 
@@ -2157,6 +2165,11 @@ function renderRevenue(){
 
   renderMileage();
   renderRecurring();
+}
+
+function toggleRevDate(date){
+  _collapsedRevDates[date] = !_collapsedRevDates[date];
+  renderRevenue();
 }
 
 function toggleRevenueCondense(){
