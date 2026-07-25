@@ -712,6 +712,21 @@
 
     <div class="section">
       <div class="section-head">
+        <h2>🎒 Day Checklist</h2>
+        <span class="count" id="checklistCount"></span>
+      </div>
+      <div id="checklistItems"></div>
+      <div id="checklistEditRow" style="display:none;margin-top:8px;">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="newChecklistItem" class="receipt-input" placeholder="e.g. Gas can, trimmer..." style="flex:1;margin:0;">
+          <button onclick="addChecklistItem()" class="pill-btn primary" style="white-space:nowrap;">＋ Add</button>
+        </div>
+      </div>
+      <button onclick="toggleChecklistEdit()" id="checklistEditBtn" style="margin-top:10px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:6px 14px;color:rgba(251,248,238,.5);font-size:12px;font-weight:700;cursor:pointer;">Edit Items</button>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
         <h2>👥 Client Roster</h2>
         <span class="count" id="rosterCount">0 total</span>
       </div>
@@ -1287,6 +1302,8 @@ let messageTemplates = []; // [{ id, label, text }]
 let maintenanceTasks = []; // [{ id, name, type, intervalMiles/intervalDays, lastDoneMileage/lastDoneDate }]
 let personalTodos = []; // [{ id, text, done }]
 let personalEvents = []; // [{ id, date, title }]
+let checklistItems = []; // [{ id, text }] — the saved items
+let _checklistEditMode = false;
 let quotes = []; // [{ id, quoteNumber, customerName, phone, email, description, amount, date }]
 let activeQuoteId = null;
 let selectedMessageId = null;
@@ -1367,6 +1384,14 @@ async function init(){
     maintenanceTasks = d.maintenanceTasks || [];
     personalTodos = d.personalTodos || [];
     personalEvents = d.personalEvents || [];
+    checklistItems = d.checklistItems || [
+      { id:'cl1', text:'Gas can' },
+      { id:'cl2', text:'Lawn mower' },
+      { id:'cl3', text:'Weed trimmer' },
+      { id:'cl4', text:'Leaf blower' },
+      { id:'cl5', text:'Water' },
+      { id:'cl6', text:'Gloves' }
+    ];
     quotes = d.quotes || [];
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
@@ -1398,7 +1423,7 @@ async function init(){
 function syncMainDoc(){
   if(!firstSnapshotLoaded) return; // don't overwrite real data before it has loaded
   mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, quotes, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
   }, { merge: true });
 }
 
@@ -2397,6 +2422,68 @@ function deletePersonalEvent(id){
   renderOverviewCal();
 }
 
+function renderChecklist(){
+  const el = document.getElementById('checklistItems');
+  if(!el) return;
+  const today = new Date().toDateString();
+  const storedDate = localStorage.getItem('checklist_date');
+  if(storedDate !== today) {
+    localStorage.setItem('checklist_date', today);
+    localStorage.removeItem('checklist_checked');
+  }
+  let checked = JSON.parse(localStorage.getItem('checklist_checked') || '{}');
+  const total = checklistItems.length;
+  const done = checklistItems.filter(i => checked[i.id]).length;
+  const countEl = document.getElementById('checklistCount');
+  if(countEl) countEl.textContent = `${done}/${total} packed`;
+
+  el.innerHTML = checklistItems.map(item => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,.06);border-radius:12px;margin-bottom:8px;">
+      <div onclick="toggleChecklistItem('${item.id}')" style="width:24px;height:24px;border-radius:50%;border:2px solid ${checked[item.id] ? '#4caf7d' : 'rgba(255,255,255,.3)'};background:${checked[item.id] ? '#4caf7d' : 'transparent'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .2s;">
+        ${checked[item.id] ? '<span style="color:#fff;font-size:13px;font-weight:900;">✓</span>' : ''}
+      </div>
+      <span style="font-size:16px;font-weight:700;flex:1;${checked[item.id] ? 'opacity:.4;text-decoration:line-through;' : ''}">${escapeHtml(item.text)}</span>
+      ${_checklistEditMode ? `<button onclick="removeChecklistItem('${item.id}')" style="background:transparent;border:none;color:rgba(255,100,100,.7);font-size:18px;cursor:pointer;padding:0 4px;">✕</button>` : ''}
+    </div>`).join('');
+
+  document.getElementById('checklistEditRow').style.display = _checklistEditMode ? 'block' : 'none';
+  document.getElementById('checklistEditBtn').textContent = _checklistEditMode ? 'Done' : 'Edit Items';
+
+  if(total > 0 && done === total){
+    el.innerHTML += `<div style="text-align:center;padding:10px;font-size:14px;color:#4caf7d;font-weight:800;">✅ All packed — you're good to go!</div>`;
+  }
+}
+
+function toggleChecklistItem(id){
+  const today = new Date().toDateString();
+  let checked = JSON.parse(localStorage.getItem('checklist_checked') || '{}');
+  checked[id] = !checked[id];
+  localStorage.setItem('checklist_checked', JSON.stringify(checked));
+  localStorage.setItem('checklist_date', today);
+  renderChecklist();
+}
+
+function toggleChecklistEdit(){
+  _checklistEditMode = !_checklistEditMode;
+  renderChecklist();
+}
+
+function addChecklistItem(){
+  const input = document.getElementById('newChecklistItem');
+  const text = input.value.trim();
+  if(!text) return;
+  checklistItems.push({ id: 'cl' + Date.now(), text });
+  input.value = '';
+  syncMainDoc();
+  renderChecklist();
+}
+
+function removeChecklistItem(id){
+  checklistItems = checklistItems.filter(i => i.id !== id);
+  syncMainDoc();
+  renderChecklist();
+}
+
 function renderTodos(){
   const list = document.getElementById('todoList');
   if(!list) return;
@@ -2627,6 +2714,7 @@ function render(){
   renderTotals();
   renderWeekend();
   renderRoster();
+  renderChecklist();
   document.getElementById('editControls').style.display = canEdit() ? 'flex' : 'none';
 }
 
