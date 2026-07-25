@@ -2425,12 +2425,6 @@ function deletePersonalEvent(id){
 function renderChecklist(){
   const el = document.getElementById('checklistItems');
   if(!el) return;
-  const today = new Date().toDateString();
-  const storedDate = localStorage.getItem('checklist_date');
-  if(storedDate !== today) {
-    localStorage.setItem('checklist_date', today);
-    localStorage.removeItem('checklist_checked');
-  }
   let checked = JSON.parse(localStorage.getItem('checklist_checked') || '{}');
   const total = checklistItems.length;
   const done = checklistItems.filter(i => checked[i.id]).length;
@@ -2459,7 +2453,6 @@ function toggleChecklistItem(id){
   let checked = JSON.parse(localStorage.getItem('checklist_checked') || '{}');
   checked[id] = !checked[id];
   localStorage.setItem('checklist_checked', JSON.stringify(checked));
-  localStorage.setItem('checklist_date', today);
   renderChecklist();
 }
 
