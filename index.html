@@ -1990,14 +1990,17 @@ function deleteReceipt(){
 }
 
 function completeJob(id){
-  if(!canEdit()) return;
+  if(!canEdit()){ showToast('Unlock the app first'); return; }
   const c = clients.find(cl => cl.id === id);
-  if(!c) return;
+  if(!c){ showToast('Client not found'); return; }
+  const flagData = flagNotes[id] || {};
+  const extraPrice = typeof flagData === 'object' ? (Number(flagData.price) || 0) : 0;
+  const totalPrice = Number(c.price || 0) + extraPrice;
   completedJobs.push({
     id: 'job' + Date.now(),
     clientId: id,
     name: c.name,
-    price: c.price,
+    price: totalPrice,
     scheduledDate: weekendDates[id] || null,
     completedDate: new Date().toISOString().slice(0,10),
     paid: !!weekendPaid[id]
@@ -2006,8 +2009,11 @@ function completeJob(id){
   delete weekendDates[id];
   delete weekendPaid[id];
   delete weekendDone[id];
+  delete flagNotes[id];
   syncMainDoc();
-  showToast(c.name + ' marked complete ✅');
+  render();
+  showToast(c.name + ' logged to revenue ✅');
+  setTimeout(() => switchTab('revenue'), 800);
 }
 
 function deleteCompletedJob(jobId){
