@@ -755,6 +755,14 @@
       </div>
     </div>
 
+    <div class="section" id="unpaidSummarySection" style="display:none;">
+      <div class="section-head">
+        <h2>💸 Unpaid Balances</h2>
+        <span class="count" id="unpaidTotalDisplay"></span>
+      </div>
+      <div id="unpaidSummaryList"></div>
+    </div>
+
     <div class="section">
       <div class="section-head">
         <h2>✅ Completed Jobs</h2>
@@ -2032,6 +2040,32 @@ function renderRevenue(){
   document.getElementById('revenueTotalDisplay').textContent = '$' + total.toLocaleString();
   document.getElementById('revenueJobCount').textContent = yearJobs.length;
   document.getElementById('completedCount').textContent = completedJobs.length + ' total';
+
+  // Unpaid balances — group unpaid jobs by client name and sum
+  const unpaidMap = {};
+  completedJobs.filter(j => !j.paid).forEach(j => {
+    if(!unpaidMap[j.name]) unpaidMap[j.name] = { name: j.name, total: 0, jobs: 0 };
+    unpaidMap[j.name].total += Number(j.price);
+    unpaidMap[j.name].jobs++;
+  });
+  const unpaidClients = Object.values(unpaidMap).sort((a,b) => b.total - a.total);
+  const unpaidSection = document.getElementById('unpaidSummarySection');
+  const unpaidList = document.getElementById('unpaidSummaryList');
+  if(unpaidClients.length > 0){
+    const grandUnpaid = unpaidClients.reduce((s,c) => s + c.total, 0);
+    document.getElementById('unpaidTotalDisplay').textContent = '$' + grandUnpaid.toLocaleString() + ' total owed';
+    unpaidList.innerHTML = unpaidClients.map(c => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(194,58,48,.1);border:1px solid rgba(194,58,48,.25);border-radius:12px;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:800;font-size:15px;">${escapeHtml(c.name)}</div>
+          <div style="font-size:12px;opacity:.6;">${c.jobs} unpaid job${c.jobs>1?'s':''}</div>
+        </div>
+        <div style="font-size:18px;font-weight:900;color:#e05a50;">$${c.total.toLocaleString()}</div>
+      </div>`).join('');
+    unpaidSection.style.display = 'block';
+  } else {
+    unpaidSection.style.display = 'none';
+  }
 
   const list = document.getElementById('completedList');
   if(completedJobs.length === 0){
