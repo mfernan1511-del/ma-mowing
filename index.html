@@ -1405,6 +1405,7 @@ async function init(){
     firstSnapshotLoaded = true;
     const loadScreen = document.getElementById('appLoadingScreen');
     if(loadScreen) loadScreen.style.display = 'none';
+    seedHistoricalJobs(d);
     checkRecurringRevenue();
     render();
     if(activeTab === 'revenue') renderRevenue();
@@ -1433,6 +1434,48 @@ function syncMainDoc(){
   mainDocRef.set({
     clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
   }, { merge: true });
+}
+
+function seedHistoricalJobs(d){
+  if(d.historicalJobsSeeded) return;
+  const hist = [
+    {n:'Kaye Breen',p:50,d:'2026-05-30'},{n:'Robin',p:50,d:'2026-05-30'},{n:'Pat',p:50,d:'2026-05-30'},
+    {n:'Jack',p:45,d:'2026-05-30'},{n:'Julie',p:60,d:'2026-05-30'},{n:'Cindy',p:50,d:'2026-05-30'},
+    {n:'Keith',p:50,d:'2026-05-30'},{n:'Don',p:50,d:'2026-05-30'},{n:'David',p:100,d:'2026-05-30'},
+    {n:'Jacob',p:60,d:'2026-05-31'},{n:'Lou Vino',p:50,d:'2026-05-31'},{n:'Gene (3 kids)',p:70,d:'2026-05-31'},
+    {n:'Todd',p:60,d:'2026-05-31'},{n:'Candy',p:30,d:'2026-05-31'},
+    {n:'Martin Broach',p:50,d:'2026-06-06'},{n:'Gene (Old Man)',p:40,d:'2026-06-06'},{n:'Steve Quinn (Mother in Law)',p:55,d:'2026-06-06'},
+    {n:'Linda',p:40,d:'2026-06-06'},{n:'Kaye Breen',p:50,d:'2026-06-06'},{n:'Robin',p:50,d:'2026-06-06'},
+    {n:'Pat',p:50,d:'2026-06-06'},{n:'Jack',p:45,d:'2026-06-06'},{n:'David',p:100,d:'2026-06-06'},
+    {n:'Julie',p:60,d:'2026-06-07'},{n:'Cindy',p:50,d:'2026-06-07'},{n:'Keith',p:50,d:'2026-06-07'},
+    {n:'Don',p:50,d:'2026-06-07'},{n:'Jacob',p:60,d:'2026-06-07'},
+    {n:'Lou Vino',p:50,d:'2026-06-13'},{n:'Gene (3 kids)',p:70,d:'2026-06-13'},{n:'Todd',p:60,d:'2026-06-13'},
+    {n:'Martin Broach',p:50,d:'2026-06-13'},{n:'Gene (Old Man)',p:40,d:'2026-06-13'},{n:'Steve Quinn (Mother in Law)',p:55,d:'2026-06-13'},
+    {n:'Kaye Breen',p:50,d:'2026-06-13'},{n:'Robin',p:50,d:'2026-06-13'},
+    {n:'Pat',p:50,d:'2026-06-20'},{n:'Jack',p:45,d:'2026-06-20'},{n:'Julie',p:60,d:'2026-06-20'},
+    {n:'Cindy',p:50,d:'2026-06-20'},{n:'Keith',p:50,d:'2026-06-20'},{n:'Don',p:50,d:'2026-06-20'},
+    {n:'David',p:100,d:'2026-06-20'},{n:'Jacob',p:60,d:'2026-06-20'},
+    {n:'Lou Vino',p:50,d:'2026-06-27'},{n:'Gene (3 kids)',p:70,d:'2026-06-27'},{n:'Todd',p:60,d:'2026-06-27'},
+    {n:'Martin Broach',p:50,d:'2026-06-27'},{n:'Gene (Old Man)',p:40,d:'2026-06-27'},{n:'Steve Quinn (Mother in Law)',p:55,d:'2026-06-27'},
+    {n:'Linda',p:40,d:'2026-06-27'},{n:'Kaye Breen',p:50,d:'2026-06-27'},
+    {n:'Robin',p:50,d:'2026-07-04'},{n:'Pat',p:50,d:'2026-07-04'},{n:'Linda',p:40,d:'2026-07-04'},
+    {n:'Julie',p:60,d:'2026-07-04'},{n:'Cindy',p:50,d:'2026-07-04'},{n:'Keith',p:50,d:'2026-07-04'},
+    {n:'Don',p:50,d:'2026-07-04'},{n:'David',p:100,d:'2026-07-04'},
+    {n:'Jacob',p:60,d:'2026-07-11'},{n:'Lou Vino',p:50,d:'2026-07-11'},{n:'Gene (3 kids)',p:70,d:'2026-07-11'},
+    {n:'Todd',p:60,d:'2026-07-11'},{n:'Martin Broach',p:50,d:'2026-07-11'},{n:'Gene (Old Man)',p:40,d:'2026-07-11'},
+    {n:'Steve Quinn (Mother in Law)',p:55,d:'2026-07-11'},
+    {n:'Linda',p:40,d:'2026-07-18'},{n:'Kaye Breen',p:50,d:'2026-07-18'},{n:'Robin',p:50,d:'2026-07-18'},
+    {n:'Pat',p:50,d:'2026-07-18'},{n:'Jack',p:45,d:'2026-07-18'},{n:'Julie',p:60,d:'2026-07-18'},
+    {n:'Cindy',p:50,d:'2026-07-18'},{n:'Keith',p:50,d:'2026-07-18'},
+    {n:'Don',p:50,d:'2026-07-19'},{n:'Jacob',p:60,d:'2026-07-19'},{n:'Lou Vino',p:50,d:'2026-07-19'},
+    {n:'David',p:100,d:'2026-07-19'},{n:'Gene (3 kids)',p:70,d:'2026-07-19'},{n:'Todd',p:60,d:'2026-07-19'},
+  ];
+  hist.forEach((j,i) => completedJobs.push({
+    id:'hist'+i+'_'+j.d.replace(/-/g,''),
+    name:j.n, price:j.p, completedDate:j.d,
+    scheduledDate:j.d, paid:true, clientId:null
+  }));
+  mainDocRef.set({ historicalJobsSeeded:true, completedJobs }, { merge:true });
 }
 
 function checkRecurringRevenue(){
@@ -2036,7 +2079,7 @@ function renderRevenue(){
   const currentYear = new Date().getFullYear();
   document.getElementById('revenueYearLabel').textContent = currentYear + ' Revenue';
   const yearJobs = completedJobs.filter(j => new Date(j.completedDate).getFullYear() === currentYear);
-  const total = 3600 + yearJobs.reduce((s,j) => s + Number(j.price), 0);
+  const total = yearJobs.reduce((s,j) => s + Number(j.price), 0);
   document.getElementById('revenueTotalDisplay').textContent = '$' + total.toLocaleString();
   document.getElementById('revenueJobCount').textContent = yearJobs.length;
   document.getElementById('completedCount').textContent = completedJobs.length + ' total';
