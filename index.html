@@ -821,7 +821,10 @@
       <div class="fab-row">
         <button class="pill-btn primary" onclick="openServiceAreaMap()">🗺 View Service Area Map</button>
       </div>
-      <div id="customersList"></div>
+      <div style="position:relative;">
+        <div id="customersList"></div>
+        <div id="alphaScroll" style="position:fixed;right:4px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:1px;z-index:100;"></div>
+      </div>
     </div>
   </div>
 
@@ -1590,28 +1593,30 @@ function renderCustomers(){
   const list = document.getElementById('customersList');
   if(clients.length === 0){
     list.innerHTML = `<div class="empty-state">No customers yet.</div>`;
+    document.getElementById('alphaScroll').innerHTML = '';
     return;
   }
   const sorted = [...clients].sort((a,b) => a.name.localeCompare(b.name));
-  // Group by first letter
   const groups = {};
   sorted.forEach(c => {
     const letter = c.name.trim()[0].toUpperCase();
     if(!groups[letter]) groups[letter] = [];
     groups[letter].push(c);
   });
-  list.innerHTML = Object.keys(groups).sort().map(letter => {
+  const letters = Object.keys(groups).sort();
+
+  list.innerHTML = letters.map(letter => {
     const collapsed = _collapsedLetters[letter];
     const cards = groups[letter].map(c => `
       <div class="client-card tappable" onclick="openProfile('${c.id}')">
         <div class="info">
-          <div class="name">${escapeHtml(c.name)}</div>
+          <div class="name" style="font-size:17px;">${escapeHtml(c.name)}</div>
           <div class="price">${c.phone ? escapeHtml(c.phone) : (c.email ? escapeHtml(c.email) : 'No contact info')}</div>
         </div>
         <div class="actions"><span class="tap-hint">view profile ›</span></div>
       </div>`).join('');
     return `
-      <div style="margin-bottom:8px;">
+      <div id="letter-group-${letter}" style="margin-bottom:8px;">
         <div onclick="toggleLetterGroup('${letter}')" style="display:flex;align-items:center;gap:10px;padding:8px 4px;cursor:pointer;user-select:none;">
           <div style="width:32px;height:32px;border-radius:50%;background:rgba(76,175,125,.2);border:1px solid rgba(76,175,125,.3);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#4caf7d;flex-shrink:0;">${letter}</div>
           <span style="font-size:13px;font-weight:700;opacity:.7;">${groups[letter].length} client${groups[letter].length > 1 ? 's' : ''}</span>
@@ -1620,6 +1625,22 @@ function renderCustomers(){
         <div style="display:${collapsed ? 'none' : 'block'};">${cards}</div>
       </div>`;
   }).join('');
+
+  // Build side alpha scroll bar
+  const bar = document.getElementById('alphaScroll');
+  bar.innerHTML = letters.map(l => `
+    <div onclick="scrollToLetter('${l}')" style="width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#4caf7d;cursor:pointer;border-radius:4px;line-height:1;">${l}</div>
+  `).join('');
+}
+
+function scrollToLetter(letter){
+  // Expand if collapsed
+  if(_collapsedLetters[letter]){
+    _collapsedLetters[letter] = false;
+    renderCustomers();
+  }
+  const el = document.getElementById('letter-group-' + letter);
+  if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function toggleLetterGroup(letter){
