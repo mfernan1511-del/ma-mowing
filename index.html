@@ -2086,6 +2086,13 @@ function completeJob(id){
   setTimeout(() => switchTab('revenue'), 800);
 }
 
+function markClientPaid(name){
+  completedJobs.forEach(j => { if(j.name === name && !j.paid) j.paid = true; });
+  syncMainDoc();
+  showToast(name + ' marked as paid ✅');
+  renderRevenue();
+}
+
 function deleteCompletedJob(jobId){
   if(!canEdit()) return;
   if(!confirm('Remove this completed job from revenue records?')) return;
@@ -2117,12 +2124,13 @@ function renderRevenue(){
     const grandUnpaid = unpaidClients.reduce((s,c) => s + c.total, 0);
     document.getElementById('unpaidTotalDisplay').textContent = '$' + grandUnpaid.toLocaleString() + ' total owed';
     unpaidList.innerHTML = unpaidClients.map(c => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(194,58,48,.1);border:1px solid rgba(194,58,48,.25);border-radius:12px;margin-bottom:8px;">
-        <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(194,58,48,.1);border:1px solid rgba(194,58,48,.25);border-radius:12px;margin-bottom:8px;gap:10px;">
+        <div style="flex:1;">
           <div style="font-weight:800;font-size:15px;">${escapeHtml(c.name)}</div>
           <div style="font-size:12px;opacity:.6;">${c.jobs} unpaid job${c.jobs>1?'s':''}</div>
         </div>
         <div style="font-size:18px;font-weight:900;color:#e05a50;">$${c.total.toLocaleString()}</div>
+        <button onclick="markClientPaid('${escapeHtml(c.name)}')" style="padding:8px 12px;border:none;border-radius:8px;background:#4caf7d;color:#fff;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;">✓ Mark Paid</button>
       </div>`).join('');
     unpaidSection.style.display = 'block';
   } else {
