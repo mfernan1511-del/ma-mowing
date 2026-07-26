@@ -846,31 +846,12 @@ if(new URLSearchParams(location.search).get('quote')){
         <button onclick="clearAllBankTx()" style="font-size:11px;font-weight:800;padding:5px 10px;border-radius:8px;border:1px solid rgba(248,113,113,.4);background:transparent;color:#f87171;cursor:pointer;">🗑 Clear All</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <button onclick="exportBankExcel()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;cursor:pointer;">📊 Excel</button>
-        <button onclick="document.getElementById('bankCsvInput').click()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:#1a4a6e;color:#fff;cursor:pointer;">📂 Import CSV</button>
+        <button onclick="openBankAddModal()" class="pill-btn primary" style="flex:1;">＋ Add Transaction</button>
+        <button onclick="exportBankExcel()" style="padding:10px 14px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;font-weight:800;font-size:13px;cursor:pointer;">📊</button>
+        <button onclick="document.getElementById('bankCsvInput').click()" style="padding:10px 14px;border-radius:10px;border:none;background:#1a4a6e;color:#fff;font-weight:800;font-size:13px;cursor:pointer;">📂</button>
       </div>
       <input type="file" id="bankCsvInput" accept=".csv,text/csv" style="display:none" onchange="handleBankCsvImport(event)">
-      <div id="bankCsvDropZone" onclick="document.getElementById('bankCsvInput').click()"
-        ondragover="event.preventDefault();this.style.borderColor='#4ade80';this.style.background='rgba(74,222,128,.08)'"
-        ondragleave="this.style.borderColor='rgba(126,152,171,.25)';this.style.background='transparent'"
-        ondrop="event.preventDefault();this.style.borderColor='rgba(126,152,171,.25)';this.style.background='transparent';handleBankCsvImport({target:{files:event.dataTransfer.files},type:'drop'})"
-        style="margin-bottom:14px;padding:18px;border:2px dashed rgba(126,152,171,.25);border-radius:12px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;">
-        <div style="font-size:22px;margin-bottom:6px;">📄</div>
-        <div style="font-size:13px;font-weight:700;color:rgba(251,248,238,.6);">Drop your bank CSV here</div>
-        <div style="font-size:11px;color:rgba(251,248,238,.35);margin-top:3px;">or tap to browse files</div>
-      </div>
-      <div id="bankAddForm" style="display:none;background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:14px;flex-direction:column;gap:10px;">
-        <div style="display:flex;gap:8px;">
-          <button id="bankTypeDeposit" onclick="setBankType('deposit')" style="flex:1;padding:9px;border-radius:10px;border:2px solid #4ade80;background:rgba(74,222,128,.15);color:#4ade80;font-weight:800;font-size:13px;cursor:pointer;">▲ Deposit</button>
-          <button id="bankTypeWithdraw" onclick="setBankType('withdraw')" style="flex:1;padding:9px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(251,248,238,.5);font-weight:800;font-size:13px;cursor:pointer;">▼ Withdrawal</button>
-        </div>
-        <input type="date" id="bankDateInput" class="receipt-input">
-        <input type="text" id="bankDescInput" class="receipt-input" placeholder="Description (e.g. Fuel, Client payment)">
-        <input type="number" id="bankAmountInput" class="receipt-input" placeholder="Amount" min="0" step="0.01">
-        <button onclick="saveBankTx()" class="pill-btn primary" style="width:100%;">Save</button>
-      </div>
       <div id="bankTxList"></div>
-      <button onclick="toggleBankForm()" id="bankAddBtn" style="width:100%;margin-top:6px;padding:11px;border:2px dashed rgba(126,152,171,.3);border-radius:12px;background:transparent;color:rgba(251,248,238,.5);font-weight:700;font-size:13px;cursor:pointer;">+ Add Transaction</button>
       </div><!-- /bankTxBody -->
     </div><!-- /section -->
   </div><!-- /receiptsView -->
@@ -1088,6 +1069,23 @@ if(new URLSearchParams(location.search).get('quote')){
       <button class="pill-btn" onclick="deleteReceipt()">🗑 Delete Receipt</button>
     </div>
     <button class="modal-close" onclick="closeReceiptLightbox()">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="bankAddOverlay">
+  <div class="modal">
+    <h3 style="margin-bottom:14px;">🏦 Add Transaction</h3>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button id="bankTypeDeposit" onclick="setBankType('deposit')" style="flex:1;padding:11px;border-radius:10px;border:2px solid #4ade80;background:rgba(74,222,128,.15);color:#4ade80;font-weight:800;font-size:14px;cursor:pointer;">▲ Deposit</button>
+      <button id="bankTypeWithdraw" onclick="setBankType('withdraw')" style="flex:1;padding:11px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(251,248,238,.5);font-weight:800;font-size:14px;cursor:pointer;">▼ Withdrawal</button>
+    </div>
+    <input type="date" id="bankDateInput" class="receipt-input" style="margin-bottom:10px;">
+    <input type="text" id="bankDescInput" class="receipt-input" placeholder="Description (e.g. Gas, Client payment)" style="margin-bottom:10px;">
+    <input type="number" id="bankAmountInput" class="receipt-input" placeholder="Amount" min="0" step="0.01" style="margin-bottom:14px;">
+    <div style="display:flex;gap:8px;">
+      <button class="pill-btn" style="flex:1;" onclick="document.getElementById('bankAddOverlay').classList.remove('show')">Cancel</button>
+      <button class="pill-btn primary" style="flex:1;" onclick="saveBankTx()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -1388,6 +1386,14 @@ let _checklistEditMode = false;
 let quotes = []; // [{ id, quoteNumber, customerName, phone, email, description, amount, date }]
 let bankTransactions = []; // [{ id, type:'deposit'|'withdraw', date, desc, amount }]
 let _bankType = 'deposit';
+function openBankAddModal(){
+  if(!canEdit()){ showToast('Unlock the app first'); return; }
+  document.getElementById('bankDateInput').value = new Date().toISOString().slice(0,10);
+  document.getElementById('bankDescInput').value = '';
+  document.getElementById('bankAmountInput').value = '';
+  setBankType('deposit');
+  document.getElementById('bankAddOverlay').classList.add('show');
+}
 let activeQuoteId = null;
 let selectedMessageId = null;
 let activeProfileClientId = null;
@@ -2321,23 +2327,6 @@ function setBankType(type){
   if(wit){ wit.style.borderColor = type==='withdraw'?'#f87171':'rgba(255,255,255,.15)'; wit.style.background = type==='withdraw'?'rgba(248,113,113,.15)':'transparent'; wit.style.color = type==='withdraw'?'#f87171':'rgba(251,248,238,.5)'; }
 }
 
-function toggleBankForm(){
-  const form = document.getElementById('bankAddForm');
-  const btn = document.getElementById('bankAddBtn');
-  if(!form) return;
-  const open = form.style.display !== 'none' && form.style.display !== '';
-  form.style.display = open ? 'none' : 'flex';
-  if(!open){
-    document.getElementById('bankDateInput').value = new Date().toISOString().slice(0,10);
-    document.getElementById('bankDescInput').value = '';
-    document.getElementById('bankAmountInput').value = '';
-    setBankType('deposit');
-    btn.textContent = '✕ Cancel';
-  } else {
-    btn.textContent = '+ Add Transaction';
-  }
-}
-
 function saveBankTx(){
   if(!canEdit()){ showToast('Unlock the app first'); return; }
   const date = document.getElementById('bankDateInput').value;
@@ -2347,8 +2336,8 @@ function saveBankTx(){
   bankTransactions.push({ id:'bt'+Date.now(), type:_bankType, date, desc, amount });
   syncMainDoc();
   renderBankTx();
-  toggleBankForm();
-  showToast(((_bankType==='deposit'?'Deposit':'Withdrawal')+' saved ✅'));
+  document.getElementById('bankAddOverlay').classList.remove('show');
+  showToast((_bankType==='deposit'?'Deposit':'Withdrawal')+' saved ✅');
 }
 
 function deleteBankTx(id){
