@@ -851,10 +851,14 @@ if(new URLSearchParams(location.search).get('quote')){
     </div>
 
     <div class="section" style="margin-top:20px;">
-      <div class="section-head">
+      <div class="section-head" onclick="toggleBankCollapse()" style="cursor:pointer;">
         <h2>🏦 Bank Transactions</h2>
-        <span class="count" id="bankTxCount">0 total</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="count" id="bankTxCount">0 total</span>
+          <span id="bankCollapseChevron" style="font-size:13px;opacity:.6;transition:transform .2s;">▼</span>
+        </div>
       </div>
+      <div id="bankTxBody">
       <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(126,152,171,.12);border:1px solid rgba(126,152,171,.25);border-radius:12px;padding:10px 16px;margin-bottom:14px;">
         <div>
           <div style="font-size:11px;font-weight:700;color:rgba(251,248,238,.5);text-transform:uppercase;letter-spacing:.5px;">Balance</div>
@@ -878,8 +882,9 @@ if(new URLSearchParams(location.search).get('quote')){
       </div>
       <div id="bankTxList"></div>
       <button onclick="toggleBankForm()" id="bankAddBtn" style="width:100%;margin-top:6px;padding:11px;border:2px dashed rgba(126,152,171,.3);border-radius:12px;background:transparent;color:rgba(251,248,238,.5);font-weight:700;font-size:13px;cursor:pointer;">+ Add Transaction</button>
-    </div>
-  </div>
+      </div><!-- /bankTxBody -->
+    </div><!-- /section -->
+  </div><!-- /receiptsView -->
 
   <div id="customersView" style="display:none;">
     <div class="section">
@@ -2100,6 +2105,15 @@ function saveReceiptEdit(){
   });
   closeReceiptLightbox();
   showToast('Receipt updated ✅');
+}
+
+let _bankCollapsed = false;
+function toggleBankCollapse(){
+  _bankCollapsed = !_bankCollapsed;
+  const body = document.getElementById('bankTxBody');
+  const chevron = document.getElementById('bankCollapseChevron');
+  if(body) body.style.display = _bankCollapsed ? 'none' : 'block';
+  if(chevron) chevron.style.transform = _bankCollapsed ? 'rotate(-90deg)' : '';
 }
 
 function renderBankTx(){
