@@ -1370,11 +1370,12 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const mainDocRef = db.collection('appData').doc('main');
+const bankTxDocRef = db.collection('appData').doc('bankTransactions');
 const receiptsCollRef = db.collection('receipts');
 const jobPhotosCollRef = db.collection('jobPhotos');
 function saveBankTransactions(){
   try { localStorage.setItem('ma_bank_tx', JSON.stringify(bankTransactions)); } catch(e){}
-  return mainDocRef.set({ bankTransactions }, { merge: true })
+  return bankTxDocRef.set({ items: bankTransactions })
     .catch(e => console.warn('Firestore bank save failed:', e));
 }
 
@@ -1496,9 +1497,6 @@ async function init(){
       { id:'cl6', text:'Gloves' }
     ];
     quotes = d.quotes || [];
-    bankTransactions = d.bankTransactions && d.bankTransactions.length
-      ? d.bankTransactions
-      : (() => { try { return JSON.parse(localStorage.getItem('ma_bank_tx') || '[]'); } catch(e){ return []; } })();
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
     const loadScreen = document.getElementById('appLoadingScreen');
@@ -1522,6 +1520,15 @@ async function init(){
     if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
   });
 
+  bankTxDocRef.onSnapshot(function(snap){
+    if(snap.exists){
+      bankTransactions = snap.data().items || [];
+    } else {
+      try { bankTransactions = JSON.parse(localStorage.getItem('ma_bank_tx') || '[]'); } catch(e){ bankTransactions = []; }
+    }
+    if(activeTab === 'receipts') renderBankTx();
+  });
+
 
   jobPhotosCollRef.onSnapshot(function(snap){
     jobPhotos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -1533,7 +1540,7 @@ async function init(){
 function syncMainDoc(){
   if(!firstSnapshotLoaded) return;
   mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, bankTransactions, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
   }, { merge: true })
   .then(() => console.log('syncMainDoc OK — bankTransactions:', bankTransactions.length))
   .catch(e => { console.error('syncMainDoc FAILED:', e); showToast('⚠️ Save failed: ' + e.message); });
