@@ -1373,8 +1373,9 @@ const mainDocRef = db.collection('appData').doc('main');
 const receiptsCollRef = db.collection('receipts');
 const jobPhotosCollRef = db.collection('jobPhotos');
 function saveBankTransactions(){
+  try { localStorage.setItem('ma_bank_tx', JSON.stringify(bankTransactions)); } catch(e){}
   return mainDocRef.set({ bankTransactions }, { merge: true })
-    .catch(e => showToast('⚠️ Save failed: ' + e.message));
+    .catch(e => console.warn('Firestore bank save failed:', e));
 }
 
 let clients = [];
@@ -1495,7 +1496,9 @@ async function init(){
       { id:'cl6', text:'Gloves' }
     ];
     quotes = d.quotes || [];
-    bankTransactions = d.bankTransactions || [];
+    bankTransactions = d.bankTransactions && d.bankTransactions.length
+      ? d.bankTransactions
+      : (() => { try { return JSON.parse(localStorage.getItem('ma_bank_tx') || '[]'); } catch(e){ return []; } })();
     currentPin = d.pin || DEFAULT_PIN;
     firstSnapshotLoaded = true;
     const loadScreen = document.getElementById('appLoadingScreen');
