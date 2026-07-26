@@ -1372,6 +1372,7 @@ const db = firebase.firestore();
 const mainDocRef = db.collection('appData').doc('main');
 const receiptsCollRef = db.collection('receipts');
 const jobPhotosCollRef = db.collection('jobPhotos');
+const bankTxCollRef = db.collection('bankTransactions');
 
 let clients = [];
 let weekendIds = [];
@@ -1513,6 +1514,11 @@ async function init(){
     receipts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a,b) => (b.addedDate || '').localeCompare(a.addedDate || ''));
     if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
+  });
+
+  bankTxCollRef.onSnapshot(function(snap){
+    bankTransactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if(activeTab === 'receipts') renderBankTx();
   });
 
   jobPhotosCollRef.onSnapshot(function(snap){
@@ -2286,25 +2292,22 @@ function parseBankCsv(text){
 function confirmBankCsvImport(){
   if(!_bankCsvPending.length){ showToast('Nothing to import'); return; }
   const count = _bankCsvPending.length;
-  bankTransactions.push(..._bankCsvPending);
+  const batch = db.batch();
+  _bankCsvPending.forEach(t => batch.set(bankTxCollRef.doc(t.id), t));
   _bankCsvPending = [];
   document.getElementById('bankCsvOverlay').classList.remove('show');
-  renderBankTx();
-  mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, bankTransactions, pin: currentPin
-  }, { merge: true })
-  .then(() => showToast(count + ' transactions saved ✅'))
-  .catch(e => showToast('⚠️ Save failed: ' + e.message));
+  batch.commit()
+    .then(() => showToast(count + ' transactions saved ✅'))
+    .catch(e => showToast('⚠️ Save failed: ' + e.message));
 }
 
 function clearAllBankTx(){
   if(!canEdit()){ showToast('Unlock the app first'); return; }
   if(!bankTransactions.length){ showToast('Nothing to clear'); return; }
   if(!confirm('Delete all ' + bankTransactions.length + ' bank transactions? This cannot be undone.')) return;
-  bankTransactions = [];
-  syncMainDoc();
-  renderBankTx();
-  showToast('All transactions cleared');
+  const batch = db.batch();
+  bankTransactions.forEach(t => batch.delete(bankTxCollRef.doc(t.id)));
+  batch.commit().then(() => showToast('All transactions cleared'));
 }
 
 function renderBankTx(){
@@ -2346,18 +2349,16 @@ function saveBankTx(){
   const desc = document.getElementById('bankDescInput').value.trim();
   const amount = parseFloat(document.getElementById('bankAmountInput').value);
   if(!date || !desc || isNaN(amount) || amount <= 0){ showToast('Fill in all fields'); return; }
-  bankTransactions.push({ id:'bt'+Date.now(), type:_bankType, date, desc, amount });
-  syncMainDoc();
-  renderBankTx();
+  const tx = { id:'bt'+Date.now(), type:_bankType, date, desc, amount };
+  bankTxCollRef.doc(tx.id).set(tx)
+    .then(() => showToast((_bankType==='deposit'?'Deposit':'Withdrawal')+' saved ✅'))
+    .catch(e => showToast('⚠️ Save failed: ' + e.message));
   document.getElementById('bankAddOverlay').classList.remove('show');
-  showToast((_bankType==='deposit'?'Deposit':'Withdrawal')+' saved ✅');
 }
 
 function deleteBankTx(id){
   if(!canEdit()){ showToast('Unlock the app first'); return; }
-  bankTransactions = bankTransactions.filter(t=>t.id!==id);
-  syncMainDoc();
-  renderBankTx();
+  bankTxCollRef.doc(id).delete();
 }
 
 function openManualReceipt(){
