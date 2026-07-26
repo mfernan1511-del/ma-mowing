@@ -1508,10 +1508,12 @@ async function init(){
 }
 
 function syncMainDoc(){
-  if(!firstSnapshotLoaded) return; // don't overwrite real data before it has loaded
+  if(!firstSnapshotLoaded) return;
   mainDocRef.set({
     clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, bankTransactions, pin: currentPin
-  }, { merge: true });
+  }, { merge: true })
+  .then(() => console.log('syncMainDoc OK — bankTransactions:', bankTransactions.length))
+  .catch(e => { console.error('syncMainDoc FAILED:', e); showToast('⚠️ Save failed: ' + e.message); });
 }
 
 function seedHistoricalJobs(d){
