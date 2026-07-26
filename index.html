@@ -859,7 +859,7 @@ if(new URLSearchParams(location.search).get('quote')){
         <div style="font-size:13px;font-weight:700;color:rgba(251,248,238,.6);">Drop your bank CSV here</div>
         <div style="font-size:11px;color:rgba(251,248,238,.35);margin-top:3px;">or tap to browse files</div>
       </div>
-      <div id="bankAddForm" style="display:none;background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;">
+      <div id="bankAddForm" style="display:none;background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:14px;flex-direction:column;gap:10px;">
         <div style="display:flex;gap:8px;">
           <button id="bankTypeDeposit" onclick="setBankType('deposit')" style="flex:1;padding:9px;border-radius:10px;border:2px solid #4ade80;background:rgba(74,222,128,.15);color:#4ade80;font-weight:800;font-size:13px;cursor:pointer;">▲ Deposit</button>
           <button id="bankTypeWithdraw" onclick="setBankType('withdraw')" style="flex:1;padding:9px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:transparent;color:rgba(251,248,238,.5);font-weight:800;font-size:13px;cursor:pointer;">▼ Withdrawal</button>
@@ -4473,7 +4473,7 @@ function buildBackupData(){
     clients, weekendIds, weekendDates, weekendPaid, weekendDone,
     flagNotes, completedJobs, mileageLogs, invoices,
     recurringClients, messageTemplates, maintenanceTasks,
-    personalTodos, quotes, pin: currentPin
+    personalTodos, quotes, bankTransactions, pin: currentPin
   };
 }
 
