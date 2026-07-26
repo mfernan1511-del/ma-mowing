@@ -1372,7 +1372,7 @@ const db = firebase.firestore();
 const mainDocRef = db.collection('appData').doc('main');
 const receiptsCollRef = db.collection('receipts');
 const jobPhotosCollRef = db.collection('jobPhotos');
-const bankTxCollRef = db.collection('bankTransactions');
+const bankDocRef = db.collection('appData').doc('bankTransactions');
 
 let clients = [];
 let weekendIds = [];
@@ -1515,8 +1515,8 @@ async function init(){
     if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
   });
 
-  bankTxCollRef.onSnapshot(function(snap){
-    bankTransactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  bankDocRef.onSnapshot(function(doc){
+    bankTransactions = doc.exists ? (doc.data().items || []) : [];
     if(activeTab === 'receipts') renderBankTx();
   });
 
@@ -2292,10 +2292,10 @@ function confirmBankCsvImport(){
   if(!_bankCsvPending.length){ showToast('Nothing to import'); return; }
   const count = _bankCsvPending.length;
   const batch = db.batch();
-  _bankCsvPending.forEach(t => batch.set(bankTxCollRef.doc(t.id), t));
+  bankTransactions.push(..._bankCsvPending);
   _bankCsvPending = [];
   document.getElementById('bankCsvOverlay').classList.remove('show');
-  batch.commit()
+  bankDocRef.set({ items: bankTransactions })
     .then(() => showToast(count + ' transactions saved ✅'))
     .catch(e => showToast('⚠️ Save failed: ' + e.message));
 }
@@ -2305,8 +2305,7 @@ function clearAllBankTx(){
   if(!bankTransactions.length){ showToast('Nothing to clear'); return; }
   if(!confirm('Delete all ' + bankTransactions.length + ' bank transactions? This cannot be undone.')) return;
   const batch = db.batch();
-  bankTransactions.forEach(t => batch.delete(bankTxCollRef.doc(t.id)));
-  batch.commit().then(() => showToast('All transactions cleared'));
+  bankDocRef.set({ items: [] }).then(() => showToast('All transactions cleared'));
 }
 
 function renderBankTx(){
@@ -2349,7 +2348,8 @@ function saveBankTx(){
   const amount = parseFloat(document.getElementById('bankAmountInput').value);
   if(!date || !desc || isNaN(amount) || amount <= 0){ showToast('Fill in all fields'); return; }
   const tx = { id:'bt'+Date.now(), type:_bankType, date, desc, amount };
-  bankTxCollRef.doc(tx.id).set(tx)
+  bankTransactions.push(tx);
+  bankDocRef.set({ items: bankTransactions })
     .then(() => showToast((_bankType==='deposit'?'Deposit':'Withdrawal')+' saved ✅'))
     .catch(e => showToast('⚠️ Save failed: ' + e.message));
   document.getElementById('bankAddOverlay').classList.remove('show');
@@ -2357,7 +2357,8 @@ function saveBankTx(){
 
 function deleteBankTx(id){
   if(!canEdit()){ showToast('Unlock the app first'); return; }
-  bankTxCollRef.doc(id).delete();
+  bankTransactions = bankTransactions.filter(t => t.id !== id);
+  bankDocRef.set({ items: bankTransactions });
 }
 
 function openManualReceipt(){
