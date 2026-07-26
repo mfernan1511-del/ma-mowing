@@ -851,6 +851,15 @@ if(new URLSearchParams(location.search).get('quote')){
         <button onclick="document.getElementById('bankCsvInput').click()" style="padding:10px 14px;border-radius:10px;border:none;background:#1a4a6e;color:#fff;font-weight:800;font-size:13px;cursor:pointer;">📂</button>
       </div>
       <input type="file" id="bankCsvInput" accept=".csv,text/csv" style="display:none" onchange="handleBankCsvImport(event)">
+      <div onclick="document.getElementById('bankCsvInput').click()"
+        ondragover="event.preventDefault();this.style.borderColor='#4ade80';this.style.background='rgba(74,222,128,.08)'"
+        ondragleave="this.style.borderColor='rgba(126,152,171,.25)';this.style.background='transparent'"
+        ondrop="event.preventDefault();this.style.borderColor='rgba(126,152,171,.25)';this.style.background='transparent';handleBankCsvImport({target:{files:event.dataTransfer.files}})"
+        style="margin-bottom:14px;padding:18px;border:2px dashed rgba(126,152,171,.25);border-radius:12px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;">
+        <div style="font-size:22px;margin-bottom:6px;">📄</div>
+        <div style="font-size:13px;font-weight:700;color:rgba(251,248,238,.6);">Drop your bank CSV here</div>
+        <div style="font-size:11px;color:rgba(251,248,238,.35);margin-top:3px;">or tap to browse files</div>
+      </div>
       <div id="bankTxList"></div>
       </div><!-- /bankTxBody -->
     </div><!-- /section -->
