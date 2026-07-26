@@ -872,7 +872,11 @@ if(new URLSearchParams(location.search).get('quote')){
         <div style="text-align:right;">
           <div style="font-size:11px;color:rgba(251,248,238,.45);">Deposits: <span id="bankDepositsTotal" style="color:#4ade80;font-weight:700;">$0</span></div>
           <div style="font-size:11px;color:rgba(251,248,238,.45);">Withdrawals: <span id="bankWithdrawalsTotal" style="color:#f87171;font-weight:700;">$0</span></div>
-          <button onclick="exportBankExcel()" style="margin-top:6px;font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;cursor:pointer;">📊 Excel</button>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button onclick="exportBankExcel()" style="font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;cursor:pointer;">📊 Excel</button>
+            <button onclick="document.getElementById('bankCsvInput').click()" style="font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;border:none;background:#1a4a6e;color:#fff;cursor:pointer;">📂 Import CSV</button>
+          </div>
+          <input type="file" id="bankCsvInput" accept=".csv,text/csv" style="display:none" onchange="handleBankCsvImport(event)">
         </div>
       </div>
       <div id="bankAddForm" style="display:none;background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;">
@@ -1096,6 +1100,18 @@ if(new URLSearchParams(location.search).get('quote')){
       <button class="pill-btn" onclick="deleteReceipt()">🗑 Delete Receipt</button>
     </div>
     <button class="modal-close" onclick="closeReceiptLightbox()">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="bankCsvOverlay">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <h3 style="margin-bottom:4px;">📂 Import Bank CSV</h3>
+    <p style="font-size:12px;opacity:.5;margin-bottom:14px;">Review the transactions below then tap Import All.</p>
+    <div id="bankCsvPreview"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="pill-btn" style="flex:1;" onclick="document.getElementById('bankCsvOverlay').classList.remove('show')">Cancel</button>
+      <button class="pill-btn primary" style="flex:1;" onclick="confirmBankCsvImport()">✅ Import All</button>
+    </div>
   </div>
 </div>
 
@@ -2128,6 +2144,89 @@ function toggleBankCollapse(){
   const chevron = document.getElementById('bankCollapseChevron');
   if(body) body.style.display = _bankCollapsed ? 'none' : 'block';
   if(chevron) chevron.style.transform = _bankCollapsed ? 'rotate(-90deg)' : '';
+}
+
+let _bankCsvPending = [];
+
+function handleBankCsvImport(e){
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const text = ev.target.result;
+    _bankCsvPending = parseBankCsv(text);
+    if(!_bankCsvPending.length){ showToast('No transactions found in CSV'); return; }
+    const preview = document.getElementById('bankCsvPreview');
+    preview.innerHTML = _bankCsvPending.map((t,i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;background:rgba(255,255,255,.04);border-radius:9px;margin-bottom:6px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.desc)}</div>
+          <div style="font-size:11px;opacity:.5;">${t.date}</div>
+        </div>
+        <div style="font-weight:800;font-size:14px;color:${t.type==='deposit'?'#4ade80':'#f87171'};white-space:nowrap;">${t.type==='deposit'?'+':'-'}$${Number(t.amount).toFixed(2)}</div>
+        <button onclick="_bankCsvPending.splice(${i},1);this.closest('div[style]').remove()" style="background:none;border:none;color:rgba(251,248,238,.3);font-size:15px;cursor:pointer;">✕</button>
+      </div>`).join('');
+    document.getElementById('bankCsvOverlay').classList.add('show');
+  };
+  reader.readAsText(file);
+}
+
+function parseBankCsv(text){
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if(lines.length < 2) return [];
+  const parse = line => {
+    const cols = [];
+    let cur = '', inQ = false;
+    for(let i = 0; i < line.length; i++){
+      const c = line[i];
+      if(c === '"') inQ = !inQ;
+      else if(c === ',' && !inQ){ cols.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  };
+  const headers = parse(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g,''));
+  const find = (...keys) => keys.map(k => headers.findIndex(h => h.includes(k))).find(i => i >= 0) ?? -1;
+  const dateIdx = find('date','posted','trans');
+  const descIdx = find('desc','memo','name','payee','detail','narr');
+  const amtIdx  = find('amount','amt');
+  const debIdx  = find('debit','withdraw','charge');
+  const credIdx = find('credit','deposit');
+  const txs = [];
+  for(let i = 1; i < lines.length; i++){
+    const cols = parse(lines[i]);
+    const raw = v => (v != null && cols[v] !== undefined) ? cols[v].replace(/[$,"]/g,'').trim() : '';
+    const dateRaw = raw(dateIdx);
+    const desc = raw(descIdx) || 'Transaction';
+    let amount = 0, type = 'withdraw';
+    if(amtIdx >= 0){
+      const val = parseFloat(raw(amtIdx));
+      if(!isNaN(val)){ amount = Math.abs(val); type = val >= 0 ? 'deposit' : 'withdraw'; }
+    } else {
+      const deb = parseFloat(raw(debIdx)), cred = parseFloat(raw(credIdx));
+      if(!isNaN(cred) && cred > 0){ amount = cred; type = 'deposit'; }
+      else if(!isNaN(deb) && deb > 0){ amount = deb; type = 'withdraw'; }
+    }
+    if(!amount || !dateRaw) continue;
+    // normalize date to YYYY-MM-DD
+    let date = dateRaw;
+    const m = dateRaw.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if(m){ const y = m[3].length===2?'20'+m[3]:m[3]; date = `${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; }
+    txs.push({ id:'bt'+Date.now()+Math.random().toString(36).slice(2), type, date, desc, amount });
+  }
+  return txs;
+}
+
+function confirmBankCsvImport(){
+  if(!_bankCsvPending.length){ showToast('Nothing to import'); return; }
+  bankTransactions.push(..._bankCsvPending);
+  _bankCsvPending = [];
+  syncMainDoc();
+  renderBankTx();
+  document.getElementById('bankCsvOverlay').classList.remove('show');
+  showToast('Transactions imported ✅');
 }
 
 function renderBankTx(){
