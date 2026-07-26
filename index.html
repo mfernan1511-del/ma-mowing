@@ -1521,13 +1521,15 @@ async function init(){
   });
 
   bankTxDocRef.onSnapshot(function(snap){
+    console.log('bankTx snapshot fired — exists:', snap.exists, 'data:', snap.exists ? snap.data() : null);
     if(snap.exists){
       bankTransactions = snap.data().items || [];
     } else {
       try { bankTransactions = JSON.parse(localStorage.getItem('ma_bank_tx') || '[]'); } catch(e){ bankTransactions = []; }
     }
+    console.log('bankTransactions loaded:', bankTransactions.length);
     if(activeTab === 'receipts') renderBankTx();
-  });
+  }, function(err){ console.error('bankTx snapshot error:', err); });
 
 
   jobPhotosCollRef.onSnapshot(function(snap){
