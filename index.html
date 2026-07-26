@@ -833,10 +833,14 @@ if(new URLSearchParams(location.search).get('quote')){
     <input type="file" id="receiptInput" accept="image/*" capture="environment" style="display:none" onchange="handleReceiptFile(event)">
 
     <div class="section">
-      <div class="section-head">
+      <div class="section-head" onclick="toggleReceiptsCollapse()" style="cursor:pointer;">
         <h2>🧾 Receipts</h2>
-        <span class="count" id="receiptsCount">0 total</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="count" id="receiptsCount">0 total</span>
+          <span id="receiptsCollapseChevron" style="font-size:13px;opacity:.6;transition:transform .2s;">▼</span>
+        </div>
       </div>
+      <div id="receiptsTxBody">
       <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(126,152,171,.12);border:1px solid rgba(126,152,171,.25);border-radius:12px;padding:10px 16px;margin-bottom:14px;">
         <div>
           <div style="font-size:11px;font-weight:700;color:rgba(251,248,238,.5);text-transform:uppercase;letter-spacing:.5px;">Total Spent</div>
@@ -848,6 +852,7 @@ if(new URLSearchParams(location.search).get('quote')){
         </div>
       </div>
       <div class="receipts-grid" id="receiptsGrid"></div>
+      </div><!-- /receiptsTxBody -->
     </div>
 
     <div class="section" style="margin-top:20px;">
@@ -2105,6 +2110,15 @@ function saveReceiptEdit(){
   });
   closeReceiptLightbox();
   showToast('Receipt updated ✅');
+}
+
+let _receiptsCollapsed = false;
+function toggleReceiptsCollapse(){
+  _receiptsCollapsed = !_receiptsCollapsed;
+  const body = document.getElementById('receiptsTxBody');
+  const chevron = document.getElementById('receiptsCollapseChevron');
+  if(body) body.style.display = _receiptsCollapsed ? 'none' : 'block';
+  if(chevron) chevron.style.transform = _receiptsCollapsed ? 'rotate(-90deg)' : '';
 }
 
 let _bankCollapsed = false;
