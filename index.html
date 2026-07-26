@@ -1488,7 +1488,8 @@ async function init(){
     if(activeTab === 'revenue') renderRevenue();
     if(activeTab === 'messages') renderMessages();
     if(activeTab === 'maintenance') renderMaintenance();
-  if(activeTab === 'quotes') renderQuotes();
+    if(activeTab === 'quotes') renderQuotes();
+    if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
   }, function(err){
     showToast('Connection issue — check your internet');
   });
