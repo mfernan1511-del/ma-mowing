@@ -4399,6 +4399,8 @@ function tryRenderPublicQuote(){
     document.title = 'Quote for ' + payload.name + ' — M&A Mowing';
     document.getElementById('publicQuoteView').style.display = 'block';
     document.querySelector('.wrap').style.display = 'none';
+    const ls = document.getElementById('appLoadingScreen');
+    if(ls) ls.style.display = 'none';
 
     // Check if already signed
     if(_sigQuoteId){
