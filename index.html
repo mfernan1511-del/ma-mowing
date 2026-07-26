@@ -974,6 +974,14 @@ if(new URLSearchParams(location.search).get('quote')){
         <button class="pill-btn primary" onclick="openQuoteCreate()">＋ New Quote</button>
       </div>
 
+      <div id="quoteFollowUpBanner" style="display:none;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+        <div style="font-size:20px;">⚠️</div>
+        <div>
+          <div style="font-weight:800;font-size:13px;color:#fbbf24;" id="quoteFollowUpBannerText">Quotes need follow-up</div>
+          <div style="font-size:11px;opacity:.6;margin-top:1px;">Unsigned for 3+ days</div>
+        </div>
+      </div>
+
       <div id="quotesList"></div>
     </div>
   </div>
@@ -4062,14 +4070,21 @@ function renderQuotes(){
     return;
   }
   const sorted = [...quotes].sort((a,b) => b.date.localeCompare(a.date));
+  const today = new Date(); today.setHours(0,0,0,0);
+  let followUpCount = 0;
   list.innerHTML = sorted.map(q => {
     const sig = _quoteSignatures[q.id];
+    const daysSent = q.date ? Math.floor((today - new Date(q.date+'T00:00:00')) / 86400000) : 0;
+    const needsFollowUp = !sig && daysSent >= 3;
+    if(needsFollowUp) followUpCount++;
     const sigBadge = sig
       ? `<div style="font-size:11px;color:#4caf7d;font-weight:700;margin-top:2px;">✅ Signed ${new Date(sig.signedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>`
-      : '';
-    const sigBtn = sig
+      : needsFollowUp ? `<div style="font-size:11px;color:#fbbf24;font-weight:700;margin-top:2px;">⚠️ No reply · ${daysSent}d ago</div>` : '';
+    const actionBtn = sig
       ? `<button onclick="event.stopPropagation();viewSignature('${q.id}')" style="font-size:11px;padding:4px 8px;border:1px solid #4caf7d;border-radius:6px;background:transparent;color:#4caf7d;font-weight:700;cursor:pointer;white-space:nowrap;">View Sig</button>`
-      : '';
+      : needsFollowUp && q.phone
+        ? `<button onclick="event.stopPropagation();sendQuoteFollowUp('${q.id}')" style="font-size:11px;padding:4px 8px;border:1px solid #fbbf24;border-radius:6px;background:transparent;color:#fbbf24;font-weight:700;cursor:pointer;white-space:nowrap;">📲 Follow Up</button>`
+        : '';
     return `
     <div class="profile-invoice-row" onclick="openQuoteView('${q.id}')">
       <div style="flex:1;">
@@ -4079,10 +4094,18 @@ function renderQuotes(){
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
         <div class="pi-amount">$${Number(q.amount).toLocaleString()}</div>
-        ${sigBtn}
+        ${actionBtn}
       </div>
     </div>`;
   }).join('');
+
+  // Update follow-up banner
+  const banner = document.getElementById('quoteFollowUpBanner');
+  if(banner){
+    banner.style.display = followUpCount > 0 ? 'flex' : 'none';
+    const txt = document.getElementById('quoteFollowUpBannerText');
+    if(txt) txt.textContent = followUpCount + ' quote' + (followUpCount > 1 ? 's need' : ' needs') + ' a follow-up';
+  }
 
   // Load signatures from Firestore every time quotes tab opens
   if(typeof db !== 'undefined' && quotes.length){
@@ -4095,6 +4118,14 @@ function renderQuotes(){
       if(list && Object.keys(_quoteSignatures).length) renderQuotes();
     });
   }
+}
+
+function sendQuoteFollowUp(id){
+  const q = quotes.find(x => x.id === id);
+  if(!q || !q.phone) return;
+  const url = buildQuoteShareURL(q);
+  const msg = `Hi ${q.customerName}, just following up on the quote I sent you from M&A Mowing. Let me know if you have any questions! You can view and sign it here: ${url}`;
+  window.open('sms:' + q.phone + '?body=' + encodeURIComponent(msg));
 }
 
 function viewSignature(quoteId){
