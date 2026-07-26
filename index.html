@@ -3781,17 +3781,15 @@ function renderQuotes(){
     </div>`;
   }).join('');
 
-  // Load signatures from Firestore (only once per session)
-  if(!_quoteSigsFetched && typeof db !== 'undefined' && quotes.length){
-    _quoteSigsFetched = true;
+  // Load signatures from Firestore every time quotes tab opens
+  if(typeof db !== 'undefined' && quotes.length){
     Promise.all(quotes.map(q =>
       db.collection('signatures').doc(q.id).get()
         .then(doc => { if(doc.exists) _quoteSignatures[q.id] = doc.data(); })
         .catch(()=>{})
     )).then(() => {
-      // re-render once after all fetches done
       const list = document.getElementById('quotesList');
-      if(list) renderQuotes();
+      if(list && Object.keys(_quoteSignatures).length) renderQuotes();
     });
   }
 }
