@@ -2182,47 +2182,102 @@ function handleBankCsvImport(e){
 }
 
 function parseBankCsv(text){
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  if(lines.length < 2) return [];
-  const parse = line => {
-    const cols = [];
-    let cur = '', inQ = false;
+  // Parse a CSV line respecting quoted fields
+  const parseLine = line => {
+    const cols = []; let cur = '', inQ = false;
     for(let i = 0; i < line.length; i++){
       const c = line[i];
-      if(c === '"') inQ = !inQ;
+      if(c === '"'){ inQ = !inQ; }
       else if(c === ',' && !inQ){ cols.push(cur.trim()); cur = ''; }
       else cur += c;
     }
     cols.push(cur.trim());
     return cols;
   };
-  const headers = parse(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g,''));
-  const find = (...keys) => keys.map(k => headers.findIndex(h => h.includes(k))).find(i => i >= 0) ?? -1;
+
+  const allLines = text.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if(allLines.length < 2) return [];
+
+  // Find the actual header row — skip metadata lines at top (e.g. "Account Number: ...")
+  // A header row has multiple comma-separated values and at least one date/amount keyword
+  const headerKeywords = /date|amount|debit|credit|desc|memo|payee|trans|balance|narr|detail/i;
+  let headerIdx = 0;
+  for(let i = 0; i < Math.min(allLines.length, 10); i++){
+    const cols = parseLine(allLines[i]);
+    if(cols.length >= 2 && headerKeywords.test(allLines[i])){ headerIdx = i; break; }
+  }
+
+  const headers = parseLine(allLines[headerIdx]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g,''));
+  const find = (...keys) => {
+    for(const k of keys){
+      const idx = headers.findIndex(h => h.includes(k));
+      if(idx >= 0) return idx;
+    }
+    return -1;
+  };
+
   const dateIdx = find('date','posted','trans');
-  const descIdx = find('desc','memo','name','payee','detail','narr');
+  const descIdx = find('desc','memo','payee','name','detail','narr','note');
   const amtIdx  = find('amount','amt');
-  const debIdx  = find('debit','withdraw','charge');
-  const credIdx = find('credit','deposit');
+  const debIdx  = find('debit','withdraw','charge','dr');
+  const credIdx = find('credit','deposit','cr');
+
+  // Clean a raw value: remove $, commas, quotes, parentheses-to-negative
+  const cleanNum = s => {
+    if(!s) return NaN;
+    s = s.replace(/[$, "]/g,'').trim();
+    if(/^\([\d.]+\)$/.test(s)) s = '-' + s.slice(1,-1); // (45.00) → -45.00
+    return parseFloat(s);
+  };
+  const cleanStr = s => (s||'').replace(/^"|"$/g,'').trim();
+
+  // Normalize date string to YYYY-MM-DD
+  const normalizeDate = s => {
+    s = cleanStr(s);
+    // Already YYYY-MM-DD
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // MM/DD/YYYY or MM-DD-YYYY
+    let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if(m){ const y = m[3].length===2?'20'+m[3]:m[3]; return `${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; }
+    // YYYY/MM/DD
+    m = s.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+    if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+    return s;
+  };
+
   const txs = [];
-  for(let i = 1; i < lines.length; i++){
-    const cols = parse(lines[i]);
-    const raw = v => (v != null && cols[v] !== undefined) ? cols[v].replace(/[$,"]/g,'').trim() : '';
-    const dateRaw = raw(dateIdx);
-    const desc = raw(descIdx) || 'Transaction';
+  for(let i = headerIdx + 1; i < allLines.length; i++){
+    const cols = parseLine(allLines[i]);
+    if(cols.length < 2) continue;
+    const get = idx => idx >= 0 && cols[idx] !== undefined ? cleanStr(cols[idx]) : '';
+
+    const dateRaw = get(dateIdx);
+    const date = normalizeDate(dateRaw);
+    if(!date || !/\d{4}-\d{2}-\d{2}/.test(date)) continue;
+
+    const desc = get(descIdx) || 'Transaction';
     let amount = 0, type = 'withdraw';
+
     if(amtIdx >= 0){
-      const val = parseFloat(raw(amtIdx));
-      if(!isNaN(val)){ amount = Math.abs(val); type = val >= 0 ? 'deposit' : 'withdraw'; }
-    } else {
-      const deb = parseFloat(raw(debIdx)), cred = parseFloat(raw(credIdx));
+      const val = cleanNum(get(amtIdx));
+      if(isNaN(val) || val === 0) continue;
+      amount = Math.abs(val);
+      type = val > 0 ? 'deposit' : 'withdraw';
+    } else if(debIdx >= 0 || credIdx >= 0){
+      const deb = cleanNum(get(debIdx)), cred = cleanNum(get(credIdx));
       if(!isNaN(cred) && cred > 0){ amount = cred; type = 'deposit'; }
       else if(!isNaN(deb) && deb > 0){ amount = deb; type = 'withdraw'; }
+      else continue;
+    } else {
+      // Last resort: scan all columns for a numeric value that looks like an amount
+      for(let c = 0; c < cols.length; c++){
+        if(c === dateIdx || c === descIdx) continue;
+        const v = cleanNum(cols[c]);
+        if(!isNaN(v) && Math.abs(v) > 0){ amount = Math.abs(v); type = v > 0 ? 'deposit' : 'withdraw'; break; }
+      }
+      if(!amount) continue;
     }
-    if(!amount || !dateRaw) continue;
-    // normalize date to YYYY-MM-DD
-    let date = dateRaw;
-    const m = dateRaw.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-    if(m){ const y = m[3].length===2?'20'+m[3]:m[3]; date = `${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; }
+
     txs.push({ id:'bt'+Date.now()+Math.random().toString(36).slice(2), type, date, desc, amount });
   }
   return txs;
