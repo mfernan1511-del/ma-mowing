@@ -299,6 +299,7 @@
     padding:3px 7px;border-radius:999px;margin-left:6px;
   }
   .badge.overdue{background:rgba(226,85,74,.18);color:#c23a30;}
+  .badge.vip{background:rgba(255,193,7,.2);color:#ffc107;}
 
   /* Add client form */
   .add-form{
@@ -753,6 +754,7 @@
       <div class="earnings-meta">
         <div><b id="revenueJobCount">0</b> jobs completed</div>
       </div>
+      <button onclick="openYearSummary()" style="margin-top:14px;width:100%;padding:10px;border:none;border-radius:10px;background:rgba(255,255,255,.08);color:#fbf8ee;font-weight:800;font-size:13px;cursor:pointer;">📊 Year-End Summary</button>
     </div>
 
     <div class="section" id="unpaidSummarySection" style="display:none;">
@@ -1043,6 +1045,14 @@
   </div>
 </div>
 
+<div class="overlay" id="yearSummaryOverlay">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <h3 style="margin-bottom:16px;">📊 Year-End Summary</h3>
+    <div id="yearSummaryContent"></div>
+    <button class="pill-btn" style="width:100%;margin-top:16px;" onclick="document.getElementById('yearSummaryOverlay').classList.remove('show')">Close</button>
+  </div>
+</div>
+
 <div class="overlay" id="profileOverlay">
   <div class="modal profile-modal">
     <h3 id="profileName">Customer Profile</h3>
@@ -1065,6 +1075,10 @@
         <option value="Cul-de-sac">Cul-de-sac</option>
       </select>
       <label class="receipt-field-label">Notes</label>
+      <div style="display:flex;align-items:center;gap:10px;margin:8px 0;">
+        <label style="font-size:13px;font-weight:700;opacity:.7;">👑 VIP Client</label>
+        <input type="checkbox" id="profileVipInput" style="width:18px;height:18px;cursor:pointer;">
+      </div>
       <textarea id="profileNotesInput" class="receipt-input" rows="3" placeholder="Gate code, dog in yard, etc."></textarea>
       <button class="pill-btn primary" style="width:100%;margin-top:10px;" onclick="saveProfileEdit()">Save Changes</button>
     </div>
@@ -2086,6 +2100,81 @@ function completeJob(id){
   setTimeout(() => switchTab('revenue'), 800);
 }
 
+function openYearSummary(){
+  const year = new Date().getFullYear();
+  const jobs = completedJobs.filter(j => (j.completedDate||'').startsWith(year));
+  const totalRev = jobs.reduce((s,j) => s + Number(j.price||0), 0);
+  const totalJobs = jobs.length;
+  const paidRev = jobs.filter(j=>j.paid).reduce((s,j)=>s+Number(j.price||0),0);
+  const unpaidRev = totalRev - paidRev;
+
+  // monthly breakdown
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthly = Array(12).fill(0);
+  jobs.forEach(j => {
+    const m = parseInt((j.completedDate||'').slice(5,7),10)-1;
+    if(m>=0 && m<12) monthly[m] += Number(j.price||0);
+  });
+
+  // top clients
+  const clientTotals = {};
+  jobs.forEach(j => {
+    const key = j.name || j.clientId;
+    clientTotals[key] = (clientTotals[key]||0) + Number(j.price||0);
+  });
+  const topClients = Object.entries(clientTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // expenses from receipts (mileageLogs used as proxy; receipts stored in invoices)
+  const expenses = (invoices||[]).filter(i=>i.type==='expense'||i.isExpense).reduce((s,i)=>s+Number(i.amount||0),0);
+  const netProfit = totalRev - expenses;
+
+  const monthlyRows = monthly.map((v,i) => v>0 ? `
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+      <span style="opacity:.7;">${months[i]}</span>
+      <span style="font-weight:700;color:#4ade80;">$${v.toLocaleString()}</span>
+    </div>` : '').join('');
+
+  const topRows = topClients.map(([name,amt]) => `
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+      <span style="opacity:.8;">${escapeHtml(name)}</span>
+      <span style="font-weight:700;color:#facc15;">$${amt.toLocaleString()}</span>
+    </div>`).join('');
+
+  document.getElementById('yearSummaryContent').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div style="background:rgba(74,222,128,.12);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:#4ade80;">$${totalRev.toLocaleString()}</div>
+        <div style="font-size:11px;opacity:.6;margin-top:2px;">Total Revenue</div>
+      </div>
+      <div style="background:rgba(250,204,21,.12);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:#facc15;">${totalJobs}</div>
+        <div style="font-size:11px;opacity:.6;margin-top:2px;">Jobs Completed</div>
+      </div>
+      <div style="background:rgba(99,179,237,.12);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:#63b3ed;">$${paidRev.toLocaleString()}</div>
+        <div style="font-size:11px;opacity:.6;margin-top:2px;">Collected</div>
+      </div>
+      <div style="background:rgba(252,129,74,.12);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:#fc814a;">$${unpaidRev.toLocaleString()}</div>
+        <div style="font-size:11px;opacity:.6;margin-top:2px;">Outstanding</div>
+      </div>
+    </div>
+    ${expenses > 0 ? `<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="opacity:.7;">Net Profit (after expenses)</span>
+      <span style="font-weight:800;color:${netProfit>=0?'#4ade80':'#f87171'};">$${netProfit.toLocaleString()}</span>
+    </div>` : ''}
+    <div style="font-weight:800;margin-bottom:8px;opacity:.8;">📅 Monthly Breakdown</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:10px;margin-bottom:16px;">
+      ${monthlyRows || '<div style="opacity:.4;font-size:13px;padding:6px 0;">No jobs this year yet</div>'}
+    </div>
+    ${topClients.length ? `<div style="font-weight:800;margin-bottom:8px;opacity:.8;">🏆 Top Clients</div>
+    <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:10px;">
+      ${topRows}
+    </div>` : ''}
+  `;
+  document.getElementById('yearSummaryOverlay').classList.add('show');
+}
+
 function markClientPaid(name){
   completedJobs.forEach(j => { if(j.name === name && !j.paid) j.paid = true; });
   syncMainDoc();
@@ -2934,7 +3023,7 @@ function renderWeekend(){
             ${canEdit() ? `<span class="drag-handle" title="Drag to reorder">⠿</span>` : ''}
             ${isDone ? `<span class="done-check" title="Marked done today">✓</span>` : ''}
             <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
-              <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''}</div>
+              <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''} ${(c.isVip || Number(c.price) >= 100) ? '<span class="badge vip">👑 VIP</span>' : ''}</div>
               <div class="price">$${Number(c.price).toLocaleString()}${extraPrice ? ` <span style="color:#b45c00">+ $${Number(extraPrice).toLocaleString()}</span>` : ''}</div>
               ${note ? `<div class="flag-note-text">${escapeHtml(note)}${extraPrice ? ` · $${Number(extraPrice).toLocaleString()}` : ''}</div>` : ''}
             </div>
@@ -3148,7 +3237,7 @@ function renderRoster(){
         return `
         <div class="client-card ${inWeekend ? 'in-weekend' : ''}">
           <div class="info ${canEdit() ? 'tappable' : ''}" ${canEdit() ? `onclick="openCalendar('${c.id}')"` : ''}>
-            <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''} ${inWeekend ? `<span class="badge">${dateLabel}</span>` : ''}</div>
+            <div class="name">${escapeHtml(c.name)} ${c.isSpecial ? '<span class="badge">✦ special</span>' : ''} ${(c.isVip || Number(c.price) >= 100) ? '<span class="badge vip">👑 VIP</span>' : ''} ${inWeekend ? `<span class="badge">${dateLabel}</span>` : ''}</div>
             <div class="price">$${Number(c.price).toLocaleString()}</div>
           </div>
           <div class="actions">
@@ -3298,6 +3387,7 @@ function openProfile(id){
     document.getElementById('profileAddressInput').value = c.address || '';
     document.getElementById('profileNeighborhoodInput').value = c.neighborhood || '';
     document.getElementById('profileNotesInput').value = c.notes || '';
+    document.getElementById('profileVipInput').checked = !!c.isVip;
     document.getElementById('profileNewInvoiceBtn').style.display = 'inline-block';
   } else {
     document.getElementById('profileEditFields').style.display = 'none';
@@ -3334,6 +3424,7 @@ function saveProfileEdit(){
   c.address = document.getElementById('profileAddressInput').value.trim();
   c.neighborhood = document.getElementById('profileNeighborhoodInput').value;
   c.notes = document.getElementById('profileNotesInput').value.trim();
+  c.isVip = document.getElementById('profileVipInput').checked;
   syncMainDoc();
   closeProfile();
   showToast('Profile updated ✅');
