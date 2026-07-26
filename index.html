@@ -1971,8 +1971,10 @@ function parseReceiptText(text){
 }
 
 function renderReceipts(){
-  document.getElementById('receiptControls').style.display = canEdit() ? 'flex' : 'none';
-  document.getElementById('receiptsCount').textContent = receipts.length + ' total';
+  const receiptControls = document.getElementById('receiptControls');
+  if(receiptControls) receiptControls.style.display = canEdit() ? 'flex' : 'none';
+  const receiptsCountEl = document.getElementById('receiptsCount');
+  if(receiptsCountEl) receiptsCountEl.textContent = receipts.length + ' total';
   const grandTotal = receipts.reduce((s,r) => s + (Number(r.total) || 0), 0);
   const totalEl = document.getElementById('receiptsTotalDisplay');
   if(totalEl) totalEl.textContent = '$' + grandTotal.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
