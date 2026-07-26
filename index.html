@@ -826,36 +826,9 @@ if(new URLSearchParams(location.search).get('quote')){
   </div>
 
   <div id="receiptsView" style="display:none;">
-    <div class="fab-row" id="receiptControls" style="display:none;">
-      <button class="pill-btn primary" onclick="triggerReceiptCapture()">📷 Add Receipt</button>
-      <button class="pill-btn" onclick="openManualReceipt()">✏️ Manual Entry</button>
-    </div>
     <input type="file" id="receiptInput" accept="image/*" capture="environment" style="display:none" onchange="handleReceiptFile(event)">
 
     <div class="section">
-      <div class="section-head" onclick="toggleReceiptsCollapse()" style="cursor:pointer;">
-        <h2>🧾 Receipts</h2>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="count" id="receiptsCount">0 total</span>
-          <span id="receiptsCollapseChevron" style="font-size:13px;opacity:.6;transition:transform .2s;">▼</span>
-        </div>
-      </div>
-      <div id="receiptsTxBody">
-      <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(126,152,171,.12);border:1px solid rgba(126,152,171,.25);border-radius:12px;padding:10px 16px;margin-bottom:14px;">
-        <div>
-          <div style="font-size:11px;font-weight:700;color:rgba(251,248,238,.5);text-transform:uppercase;letter-spacing:.5px;">Total Spent</div>
-          <div style="font-size:22px;font-weight:800;color:var(--cream);" id="receiptsTotalDisplay">$0</div>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="exportReceiptsExcel()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;cursor:pointer;">📊 Excel</button>
-          <button onclick="exportReceiptsPDF()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:var(--green-600);color:#fff;cursor:pointer;">📄 PDF</button>
-        </div>
-      </div>
-      <div class="receipts-grid" id="receiptsGrid"></div>
-      </div><!-- /receiptsTxBody -->
-    </div>
-
-    <div class="section" style="margin-top:20px;">
       <div class="section-head" onclick="toggleBankCollapse()" style="cursor:pointer;">
         <h2>🏦 Bank Transactions</h2>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -864,29 +837,19 @@ if(new URLSearchParams(location.search).get('quote')){
         </div>
       </div>
       <div id="bankTxBody">
-      <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(126,152,171,.12);border:1px solid rgba(126,152,171,.25);border-radius:12px;padding:10px 16px;margin-bottom:14px;">
-        <div>
-          <div style="font-size:11px;font-weight:700;color:rgba(251,248,238,.5);text-transform:uppercase;letter-spacing:.5px;">Balance</div>
-          <div style="font-size:22px;font-weight:800;" id="bankBalanceDisplay">$0</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:11px;color:rgba(251,248,238,.45);">Deposits: <span id="bankDepositsTotal" style="color:#4ade80;font-weight:700;">$0</span></div>
-          <div style="font-size:11px;color:rgba(251,248,238,.45);">Withdrawals: <span id="bankWithdrawalsTotal" style="color:#f87171;font-weight:700;">$0</span></div>
-          <div style="display:flex;gap:6px;margin-top:6px;">
-            <button onclick="exportBankExcel()" style="font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;cursor:pointer;">📊 Excel</button>
-            <button onclick="document.getElementById('bankCsvInput').click()" style="font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;border:none;background:#1a4a6e;color:#fff;cursor:pointer;">📂 Import CSV</button>
-          </div>
-          <input type="file" id="bankCsvInput" accept=".csv,text/csv" style="display:none" onchange="handleBankCsvImport(event)">
-          <div id="bankCsvDropZone" onclick="document.getElementById('bankCsvInput').click()"
-            ondragover="event.preventDefault();this.style.borderColor='#4ade80';this.style.background='rgba(74,222,128,.08)'"
-            ondragleave="this.style.borderColor='rgba(126,152,171,.25)';this.style.background='transparent'"
-            ondrop="event.preventDefault();this.style.borderColor='rgba(126,152,171,.25)';this.style.background='transparent';handleBankCsvImport({target:{files:event.dataTransfer.files},type:'drop'})"
-            style="margin-top:10px;padding:18px;border:2px dashed rgba(126,152,171,.25);border-radius:12px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;">
-            <div style="font-size:22px;margin-bottom:6px;">📄</div>
-            <div style="font-size:13px;font-weight:700;color:rgba(251,248,238,.6);">Drop your bank CSV here</div>
-            <div style="font-size:11px;color:rgba(251,248,238,.35);margin-top:3px;">or tap to browse files</div>
-          </div>
-        </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button onclick="exportBankExcel()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;cursor:pointer;">📊 Excel</button>
+        <button onclick="document.getElementById('bankCsvInput').click()" style="font-size:12px;font-weight:800;padding:8px 14px;border-radius:10px;border:none;background:#1a4a6e;color:#fff;cursor:pointer;">📂 Import CSV</button>
+      </div>
+      <input type="file" id="bankCsvInput" accept=".csv,text/csv" style="display:none" onchange="handleBankCsvImport(event)">
+      <div id="bankCsvDropZone" onclick="document.getElementById('bankCsvInput').click()"
+        ondragover="event.preventDefault();this.style.borderColor='#4ade80';this.style.background='rgba(74,222,128,.08)'"
+        ondragleave="this.style.borderColor='rgba(126,152,171,.25)';this.style.background='transparent'"
+        ondrop="event.preventDefault();this.style.borderColor='rgba(126,152,171,.25)';this.style.background='transparent';handleBankCsvImport({target:{files:event.dataTransfer.files},type:'drop'})"
+        style="margin-bottom:14px;padding:18px;border:2px dashed rgba(126,152,171,.25);border-radius:12px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;">
+        <div style="font-size:22px;margin-bottom:6px;">📄</div>
+        <div style="font-size:13px;font-weight:700;color:rgba(251,248,238,.6);">Drop your bank CSV here</div>
+        <div style="font-size:11px;color:rgba(251,248,238,.35);margin-top:3px;">or tap to browse files</div>
       </div>
       <div id="bankAddForm" style="display:none;background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;">
         <div style="display:flex;gap:8px;">
@@ -2294,15 +2257,6 @@ function confirmBankCsvImport(){
 }
 
 function renderBankTx(){
-  const deposits = bankTransactions.filter(t=>t.type==='deposit').reduce((s,t)=>s+Number(t.amount||0),0);
-  const withdrawals = bankTransactions.filter(t=>t.type==='withdraw').reduce((s,t)=>s+Number(t.amount||0),0);
-  const balance = deposits - withdrawals;
-  const bal = document.getElementById('bankBalanceDisplay');
-  if(bal){ bal.textContent = '$'+balance.toLocaleString(); bal.style.color = balance>=0?'#4ade80':'#f87171'; }
-  const dt = document.getElementById('bankDepositsTotal');
-  if(dt) dt.textContent = '$'+deposits.toLocaleString();
-  const wt = document.getElementById('bankWithdrawalsTotal');
-  if(wt) wt.textContent = '$'+withdrawals.toLocaleString();
   const ct = document.getElementById('bankTxCount');
   if(ct) ct.textContent = bankTransactions.length + ' total';
   const list = document.getElementById('bankTxList');
