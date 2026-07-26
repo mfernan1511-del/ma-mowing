@@ -2276,12 +2276,16 @@ function parseBankCsv(text){
 
 function confirmBankCsvImport(){
   if(!_bankCsvPending.length){ showToast('Nothing to import'); return; }
+  const count = _bankCsvPending.length;
   bankTransactions.push(..._bankCsvPending);
   _bankCsvPending = [];
-  syncMainDoc();
-  renderBankTx();
   document.getElementById('bankCsvOverlay').classList.remove('show');
-  showToast('Transactions imported ✅');
+  renderBankTx();
+  mainDocRef.set({
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, bankTransactions, pin: currentPin
+  }, { merge: true })
+  .then(() => showToast(count + ' transactions saved ✅'))
+  .catch(e => showToast('⚠️ Save failed: ' + e.message));
 }
 
 function clearAllBankTx(){
