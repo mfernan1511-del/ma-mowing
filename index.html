@@ -1480,7 +1480,7 @@ async function init(){
   receiptsCollRef.onSnapshot(function(snap){
     receipts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a,b) => (b.addedDate || '').localeCompare(a.addedDate || ''));
-    if(activeTab === 'receipts') renderReceipts();
+    if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
   });
 
   jobPhotosCollRef.onSnapshot(function(snap){
@@ -4591,7 +4591,7 @@ function submitPin(){
       hideGate();
       render();
       if(activeTab === 'revenue') renderRevenue();
-      if(activeTab === 'receipts') renderReceipts();
+      if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
       if(activeTab === 'customers') renderCustomers();
       if(activeTab === 'messages') renderMessages();
     if(activeTab === 'maintenance') renderMaintenance();
