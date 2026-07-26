@@ -863,6 +863,7 @@ if(new URLSearchParams(location.search).get('quote')){
         <div style="text-align:right;">
           <div style="font-size:11px;color:rgba(251,248,238,.45);">Deposits: <span id="bankDepositsTotal" style="color:#4ade80;font-weight:700;">$0</span></div>
           <div style="font-size:11px;color:rgba(251,248,238,.45);">Withdrawals: <span id="bankWithdrawalsTotal" style="color:#f87171;font-weight:700;">$0</span></div>
+          <button onclick="exportBankExcel()" style="margin-top:6px;font-size:12px;font-weight:800;padding:6px 12px;border-radius:10px;border:none;background:#1a6e3c;color:#fff;cursor:pointer;">📊 Excel</button>
         </div>
       </div>
       <div id="bankAddForm" style="display:none;background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;">
@@ -1992,6 +1993,30 @@ function exportReceiptsExcel(){
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `${year} Receipts`);
   XLSX.writeFile(wb, `MA_Mowing_Receipts_${year}.xlsx`);
+  showToast('Excel file downloaded 📊');
+}
+
+function exportBankExcel(){
+  if(typeof XLSX === 'undefined'){ showToast('Excel library not loaded yet, try again'); return; }
+  if(!bankTransactions.length){ showToast('No transactions to export'); return; }
+  const year = new Date().getFullYear();
+  const sorted = [...bankTransactions].sort((a,b)=>a.date.localeCompare(b.date));
+  const rows = sorted.map(t=>({
+    'Date': t.date ? new Date(t.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '',
+    'Type': t.type==='deposit' ? 'Deposit' : 'Withdrawal',
+    'Description': t.desc || '',
+    'Amount ($)': Number(t.amount||0),
+  }));
+  const deposits = sorted.filter(t=>t.type==='deposit').reduce((s,t)=>s+Number(t.amount||0),0);
+  const withdrawals = sorted.filter(t=>t.type==='withdraw').reduce((s,t)=>s+Number(t.amount||0),0);
+  rows.push({ 'Date':'', 'Type':'Total Deposits', 'Description':'', 'Amount ($)': deposits });
+  rows.push({ 'Date':'', 'Type':'Total Withdrawals', 'Description':'', 'Amount ($)': withdrawals });
+  rows.push({ 'Date':'', 'Type':'Net Balance', 'Description':'', 'Amount ($)': deposits - withdrawals });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{ wch:14 },{ wch:14 },{ wch:36 },{ wch:14 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${year} Bank`);
+  XLSX.writeFile(wb, `MA_Mowing_Bank_${year}.xlsx`);
   showToast('Excel file downloaded 📊');
 }
 
