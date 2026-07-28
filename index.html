@@ -1294,31 +1294,54 @@ if(new URLSearchParams(location.search).get('quote')){
 </div>
 
 <div class="overlay" id="quoteCreateOverlay">
-  <div class="modal">
+  <div class="modal" style="max-width:520px;">
     <h3>📋 New Quote</h3>
-    <label class="receipt-field-label">Customer Name</label>
-    <div style="position:relative;">
-      <input type="text" id="quoteNameInput" class="receipt-input" placeholder="e.g. Jane Smith" oninput="quoteNameSuggest()" autocomplete="off">
+
+    <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:rgba(251,248,238,.45);margin:0 0 8px;">CUSTOMER</div>
+    <div style="position:relative;margin-bottom:8px;">
+      <input type="text" id="quoteNameInput" class="receipt-input" placeholder="Full name" oninput="quoteNameSuggest()" autocomplete="off" style="margin-bottom:0;">
       <div id="quoteNameDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1a3a4a;border:1px solid rgba(255,255,255,.15);border-radius:8px;z-index:999;max-height:180px;overflow-y:auto;"></div>
     </div>
-    <label class="receipt-field-label">Phone</label>
-    <input type="tel" id="quotePhoneInput" class="receipt-input" placeholder="(555) 555-5555">
-    <label class="receipt-field-label">Email</label>
-    <input type="email" id="quoteEmailInput" class="receipt-input" placeholder="customer@email.com">
-    <label class="receipt-field-label">Services / Description</label>
-    <div id="quoteItemsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
-    <button type="button" onclick="addQuoteItem()" style="width:100%;padding:9px;border:1.5px dashed rgba(255,255,255,.3);border-radius:8px;background:transparent;color:rgba(251,248,238,.7);font-size:13px;font-weight:700;cursor:pointer;">＋ Add Item</button>
-    <label class="receipt-field-label">Quoted Price ($)</label>
-    <input type="number" id="quoteAmountInput" class="receipt-input" step="0.01" min="0" placeholder="0.00">
+    <input type="text" id="quoteCompanyInput" class="receipt-input" placeholder="Company name (optional)">
+    <input type="text" id="quoteAddressInput" class="receipt-input" placeholder="Address (optional)">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <input type="tel" id="quotePhoneInput" class="receipt-input" placeholder="Phone">
+      <input type="email" id="quoteEmailInput" class="receipt-input" placeholder="Email">
+    </div>
+
+    <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:rgba(251,248,238,.45);margin:14px 0 8px;">LINE ITEMS</div>
+    <div id="quoteItemsList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+    <button type="button" onclick="addQuoteItem()" style="width:100%;padding:9px;border:1.5px dashed rgba(255,255,255,.25);border-radius:8px;background:transparent;color:rgba(251,248,238,.6);font-size:13px;font-weight:700;cursor:pointer;">＋ Add Line Item</button>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:10px 14px;background:rgba(255,255,255,.06);border-radius:10px;">
+      <span style="font-weight:800;font-size:14px;">Total</span>
+      <span style="font-weight:800;font-size:18px;color:var(--gold-300);" id="quoteTotalPreview">$0.00</span>
+    </div>
+
+    <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:rgba(251,248,238,.45);margin:14px 0 8px;">DETAILS</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div>
+        <label class="receipt-field-label" style="margin-top:0;">Quote Date</label>
+        <input type="date" id="quoteDateInput" class="receipt-input">
+      </div>
+      <div>
+        <label class="receipt-field-label" style="margin-top:0;">Valid Until</label>
+        <input type="date" id="quoteExpiryInput" class="receipt-input">
+      </div>
+    </div>
+    <input type="text" id="quoteTermsInput" class="receipt-input" placeholder="Payment terms (e.g. Due upon completion)">
+    <textarea id="quoteNotesInput" class="receipt-input" rows="2" placeholder="Notes or additional info..." style="resize:vertical;font-family:inherit;"></textarea>
+
     <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveNewQuote()">Create Quote</button>
     <button class="modal-close" onclick="closeQuoteCreate()">Cancel</button>
   </div>
 </div>
 
 <div class="overlay" id="quoteViewOverlay">
-  <div class="modal invoice-modal">
-    <div class="invoice-paper" id="quotePaper"></div>
-    <div class="quote-share-row">
+  <div class="modal invoice-modal" style="max-width:600px;">
+    <div id="quotePaper"></div>
+    <div class="quote-share-row" style="flex-wrap:wrap;gap:8px;margin-top:16px;">
+      <button class="pill-btn primary" onclick="printQuotePDF()" style="background:linear-gradient(135deg,#16a34a,#15803d);">⬇️ Download PDF</button>
       <button class="pill-btn primary" onclick="sendQuoteEmail()">✉️ Email</button>
       <button class="pill-btn primary" onclick="sendQuoteMessage()">💬 Message</button>
       <button class="pill-btn primary" onclick="showQuoteQR()">🔗 QR Code</button>
@@ -3926,11 +3949,18 @@ let _quoteItems = []; // [{ text: string, subs: string[] }]
 function openQuoteCreate(){
   if(!canEdit()) return;
   document.getElementById('quoteNameInput').value = '';
+  document.getElementById('quoteCompanyInput').value = '';
+  document.getElementById('quoteAddressInput').value = '';
   document.getElementById('quotePhoneInput').value = '';
   document.getElementById('quoteEmailInput').value = '';
-  document.getElementById('quoteAmountInput').value = '';
+  document.getElementById('quoteTermsInput').value = 'Due upon completion';
+  document.getElementById('quoteNotesInput').value = '';
+  const today = new Date().toISOString().slice(0,10);
+  const expiry = new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10);
+  document.getElementById('quoteDateInput').value = today;
+  document.getElementById('quoteExpiryInput').value = expiry;
   document.getElementById('quoteNameDropdown').style.display = 'none';
-  _quoteItems = [];
+  _quoteItems = [{ text:'', qty:1, unitPrice:0, subs:[] }];
   renderQuoteItemsBuilder();
   document.getElementById('quoteCreateOverlay').classList.add('show');
 }
@@ -3940,30 +3970,43 @@ function renderQuoteItemsBuilder(){
   if(!el) return;
   el.innerHTML = _quoteItems.map((item, i) => `
     <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-        <span style="opacity:.5;font-size:14px;">•</span>
-        <input type="text" value="${escapeHtml(item.text)}" oninput="_quoteItems[${i}].text=this.value"
-          placeholder="e.g. Weekly Mowing"
-          style="flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);color:inherit;font-size:14px;font-weight:700;padding:2px 0;outline:none;">
-        <button onclick="removeQuoteItem(${i})" style="background:transparent;border:none;color:rgba(255,100,100,.7);font-size:16px;cursor:pointer;padding:0 4px;">✕</button>
+      <div style="display:grid;grid-template-columns:1fr 64px 80px 24px;gap:6px;align-items:center;margin-bottom:6px;">
+        <input type="text" value="${escapeHtml(item.text)}" oninput="_quoteItems[${i}].text=this.value;updateQuoteTotal()"
+          placeholder="Description"
+          style="background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);color:inherit;font-size:13px;font-weight:700;padding:2px 0;outline:none;">
+        <input type="number" value="${item.qty}" min="1" step="1" oninput="_quoteItems[${i}].qty=parseFloat(this.value)||1;updateQuoteTotal()"
+          placeholder="Qty"
+          style="background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);color:inherit;font-size:13px;padding:2px 4px;outline:none;text-align:center;">
+        <input type="number" value="${item.unitPrice}" min="0" step="0.01" oninput="_quoteItems[${i}].unitPrice=parseFloat(this.value)||0;updateQuoteTotal()"
+          placeholder="Price"
+          style="background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);color:inherit;font-size:13px;padding:2px 4px;outline:none;text-align:right;">
+        <button onclick="removeQuoteItem(${i})" style="background:transparent;border:none;color:rgba(255,100,100,.7);font-size:15px;cursor:pointer;padding:0;text-align:center;">✕</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+        <button onclick="addQuoteSub(${i})" style="background:transparent;border:none;color:rgba(251,248,238,.45);font-size:11px;cursor:pointer;padding:0;">＋ Add note</button>
+        <span style="font-size:12px;font-weight:800;color:var(--gold-300);">$${((item.qty||1)*(item.unitPrice||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
       </div>
       ${item.subs.map((s, si) => `
-        <div style="display:flex;gap:8px;align-items:center;margin-left:18px;margin-top:4px;">
-          <span style="opacity:.4;font-size:12px;">–</span>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+          <span style="opacity:.4;font-size:11px;">–</span>
           <input type="text" value="${escapeHtml(s)}" oninput="_quoteItems[${i}].subs[${si}]=this.value"
-            placeholder="Detail..."
-            style="flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.12);color:inherit;font-size:13px;padding:2px 0;outline:none;">
-          <button onclick="removeQuoteSub(${i},${si})" style="background:transparent;border:none;color:rgba(255,100,100,.5);font-size:14px;cursor:pointer;padding:0 4px;">✕</button>
+            placeholder="Note..."
+            style="flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.1);color:inherit;font-size:12px;padding:2px 0;outline:none;">
+          <button onclick="removeQuoteSub(${i},${si})" style="background:transparent;border:none;color:rgba(255,100,100,.5);font-size:13px;cursor:pointer;padding:0 2px;">✕</button>
         </div>`).join('')}
-      <button onclick="addQuoteSub(${i})" style="margin-left:18px;margin-top:6px;background:transparent;border:none;color:rgba(251,248,238,.5);font-size:12px;cursor:pointer;padding:0;">＋ Add detail</button>
     </div>`).join('');
 }
 
+function updateQuoteTotal(){
+  const total = _quoteItems.reduce((s,it) => s + (it.qty||1)*(it.unitPrice||0), 0);
+  const el = document.getElementById('quoteTotalPreview');
+  if(el) el.textContent = '$' + total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
 function addQuoteItem(){
-  _quoteItems.push({ text:'', subs:[] });
+  _quoteItems.push({ text:'', qty:1, unitPrice:0, subs:[] });
   renderQuoteItemsBuilder();
-  // focus last item input
-  setTimeout(()=>{ const ins = document.querySelectorAll('#quoteItemsList input[type=text]'); if(ins.length) ins[ins.length - (_quoteItems[_quoteItems.length-1].subs.length+1)].focus(); },50);
+  setTimeout(()=>{ const ins = document.querySelectorAll('#quoteItemsList input[type=text]'); if(ins.length) ins[ins.length-1].focus(); },50);
 }
 
 function removeQuoteItem(i){
@@ -4002,6 +4045,7 @@ function quotePickClient(id){
   document.getElementById('quoteNameInput').value = c.name;
   document.getElementById('quotePhoneInput').value = c.phone || '';
   document.getElementById('quoteEmailInput').value = c.email || '';
+  document.getElementById('quoteAddressInput').value = c.address || '';
   document.getElementById('quoteNameDropdown').style.display = 'none';
 }
 
@@ -4012,18 +4056,24 @@ function closeQuoteCreate(){
 function saveNewQuote(){
   if(!canEdit()) return;
   const customerName = document.getElementById('quoteNameInput').value.trim();
+  const customerCompany = document.getElementById('quoteCompanyInput').value.trim();
+  const customerAddress = document.getElementById('quoteAddressInput').value.trim();
   const phone = document.getElementById('quotePhoneInput').value.trim();
   const email = document.getElementById('quoteEmailInput').value.trim();
+  const terms = document.getElementById('quoteTermsInput').value.trim();
+  const notes = document.getElementById('quoteNotesInput').value.trim();
+  const date = document.getElementById('quoteDateInput').value;
+  const validUntil = document.getElementById('quoteExpiryInput').value;
   const items = _quoteItems.filter(it => it.text.trim());
-  const amount = parseFloat(document.getElementById('quoteAmountInput').value);
-  if(!customerName || !items.length || isNaN(amount) || amount < 0){
-    showToast('Enter a name, at least one item, and a price'); return;
+  if(!customerName || !items.length){
+    showToast('Enter a customer name and at least one item'); return;
   }
+  const amount = items.reduce((s,it) => s + (it.qty||1)*(it.unitPrice||0), 0);
   const quoteNumber = 2000 + quotes.length + 1;
   quotes.push({
     id: 'q' + Date.now(),
-    quoteNumber, customerName, phone, email, items, amount,
-    date: new Date().toISOString().slice(0,10)
+    quoteNumber, customerName, customerCompany, customerAddress,
+    phone, email, items, amount, date, validUntil, terms, notes
   });
   syncMainDoc();
   closeQuoteCreate();
@@ -4121,41 +4171,136 @@ function viewSignature(quoteId){
 }
 
 function buildQuotePaperHTML(q){
+  const subtotal = (q.items||[]).reduce((s,it)=>s+(it.qty||1)*(it.unitPrice||0),0);
+  const total = subtotal || Number(q.amount) || 0;
+  const fmt = n => '$' + Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  const itemRows = (q.items && q.items.length && q.items[0].unitPrice !== undefined)
+    ? q.items.filter(it=>it.text).map(it => {
+        const lineTotal = (it.qty||1)*(it.unitPrice||0);
+        return `
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;vertical-align:top;">
+            <div style="font-weight:600;color:#1a2e3b;font-size:13px;">${escapeHtml(it.text)}</div>
+            ${(it.subs||[]).filter(s=>s.trim()).map(s=>`<div style="color:#6b7f8a;font-size:11px;margin-top:2px;">– ${escapeHtml(s)}</div>`).join('')}
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:center;color:#4a5c66;font-size:13px;">${it.qty||1}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;color:#4a5c66;font-size:13px;">${fmt(it.unitPrice||0)}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;font-weight:700;color:#1a2e3b;font-size:13px;">${fmt(lineTotal)}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="4" style="padding:10px 8px;border-bottom:1px solid #e8ecef;font-size:13px;color:#1a2e3b;">${escapeHtml(q.description||'Services')}</td></tr>`;
+
   return `
-    <img class="inv-logo" src="logo.png" alt="M&A Mowing">
-    <div class="inv-business">M&amp;A Mowing</div>
-    <div class="inv-sub">Quote #${q.quoteNumber}</div>
-    <div class="inv-row"><span>For</span><span>${escapeHtml(q.customerName)}</span></div>
-    ${q.phone ? `<div class="inv-row"><span>Phone</span><span>${escapeHtml(q.phone)}</span></div>` : ''}
-    ${q.email ? `<div class="inv-row"><span>Email</span><span>${escapeHtml(q.email)}</span></div>` : ''}
-    <div class="inv-row"><span>Date</span><span>${formatDateShort(q.date)}</span></div>
-    <div class="inv-divider"></div>
-    ${buildQuoteItemsHTML(q)}
-    <div class="inv-total-row"><span>Quoted Price</span><span>$${Number(q.amount).toLocaleString()}</span></div>
-  `;
+  <div id="quotePrintArea" style="background:#fff;color:#1a2e3b;border-radius:14px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+
+    <!-- Header bar -->
+    <div style="background:linear-gradient(135deg,#0f4c35 0%,#1a6b4a 60%,#2d8a60 100%);padding:28px 30px;display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <img src="logo.png" alt="M&A Mowing" style="height:52px;width:52px;border-radius:10px;object-fit:cover;background:#fff;padding:3px;margin-bottom:8px;display:block;">
+        <div style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-.3px;">M&amp;A Mowing</div>
+        <div style="color:rgba(255,255,255,.7);font-size:12px;margin-top:2px;">Professional Lawn Care Services</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="background:rgba(255,255,255,.15);border-radius:8px;padding:8px 14px;display:inline-block;margin-bottom:10px;">
+          <div style="color:rgba(255,255,255,.7);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Quote</div>
+          <div style="color:#fff;font-size:22px;font-weight:800;">#${q.quoteNumber}</div>
+        </div>
+        <div style="color:rgba(255,255,255,.8);font-size:12px;">Date: ${formatDateShort(q.date)}</div>
+        ${q.validUntil ? `<div style="color:rgba(255,255,255,.8);font-size:12px;margin-top:2px;">Valid until: ${formatDateShort(q.validUntil)}</div>` : ''}
+      </div>
+    </div>
+
+    <!-- Bill to / from -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid #e8ecef;">
+      <div style="padding:20px 30px;border-right:1px solid #e8ecef;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;color:#6b7f8a;text-transform:uppercase;margin-bottom:8px;">Prepared For</div>
+        <div style="font-size:15px;font-weight:700;color:#1a2e3b;">${escapeHtml(q.customerName)}</div>
+        ${q.customerCompany ? `<div style="font-size:13px;color:#4a5c66;margin-top:2px;">${escapeHtml(q.customerCompany)}</div>` : ''}
+        ${q.customerAddress ? `<div style="font-size:12px;color:#6b7f8a;margin-top:3px;">${escapeHtml(q.customerAddress)}</div>` : ''}
+        ${q.phone ? `<div style="font-size:12px;color:#6b7f8a;margin-top:3px;">📞 ${escapeHtml(q.phone)}</div>` : ''}
+        ${q.email ? `<div style="font-size:12px;color:#6b7f8a;margin-top:2px;">✉️ ${escapeHtml(q.email)}</div>` : ''}
+      </div>
+      <div style="padding:20px 30px;">
+        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;color:#6b7f8a;text-transform:uppercase;margin-bottom:8px;">From</div>
+        <div style="font-size:15px;font-weight:700;color:#1a2e3b;">M&amp;A Mowing</div>
+        <div style="font-size:12px;color:#6b7f8a;margin-top:3px;">📞 (386) 999-9999</div>
+        <div style="font-size:12px;color:#6b7f8a;margin-top:2px;">✉️ mfernan1511@icloud.com</div>
+        ${q.terms ? `<div style="font-size:12px;color:#0f4c35;font-weight:600;margin-top:8px;background:#f0faf5;border-radius:6px;padding:4px 8px;">💳 ${escapeHtml(q.terms)}</div>` : ''}
+      </div>
+    </div>
+
+    <!-- Line items table -->
+    <div style="padding:0 30px;">
+      <table style="width:100%;border-collapse:collapse;margin:0;">
+        <thead>
+          <tr style="background:#f7f9fa;">
+            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;">Description</th>
+            <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;width:60px;">Qty</th>
+            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;width:90px;">Unit Price</th>
+            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;width:90px;">Total</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+    </div>
+
+    <!-- Totals -->
+    <div style="display:flex;justify-content:flex-end;padding:16px 30px 20px;">
+      <div style="min-width:220px;">
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid #0f4c35;margin-top:4px;">
+          <span style="font-size:15px;font-weight:800;color:#1a2e3b;">Total</span>
+          <span style="font-size:18px;font-weight:800;color:#0f4c35;">${fmt(total)}</span>
+        </div>
+      </div>
+    </div>
+
+    ${q.notes ? `
+    <div style="margin:0 30px 20px;background:#f7f9fa;border-left:3px solid #0f4c35;border-radius:0 8px 8px 0;padding:12px 16px;">
+      <div style="font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;margin-bottom:4px;">Notes</div>
+      <div style="font-size:12px;color:#4a5c66;line-height:1.5;">${escapeHtml(q.notes)}</div>
+    </div>` : ''}
+
+    <!-- Footer -->
+    <div style="background:#f7f9fa;border-top:1px solid #e8ecef;padding:14px 30px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:11px;color:#6b7f8a;">Thank you for your business!</div>
+      <div style="font-size:11px;color:#6b7f8a;">M&amp;A Mowing · Quote #${q.quoteNumber}</div>
+    </div>
+  </div>`;
 }
 
 function buildQuoteItemsHTML(q){
-  // Support both old string description and new structured items
   if(q.items && q.items.length){
-    return q.items.map(it => `
+    return q.items.filter(it=>it.text).map(it => `
       <div style="margin-bottom:6px;">
-        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:14px;">
-          <span>• ${escapeHtml(it.text)}</span>
-        </div>
-        ${it.subs && it.subs.filter(s=>s.trim()).map(s =>
-          `<div style="margin-left:14px;font-size:12px;color:#555;">– ${escapeHtml(s)}</div>`
-        ).join('')}
+        <div style="font-weight:700;font-size:13px;">• ${escapeHtml(it.text)}</div>
+        ${(it.subs||[]).filter(s=>s.trim()).map(s=>`<div style="margin-left:14px;font-size:12px;color:#555;">– ${escapeHtml(s)}</div>`).join('')}
       </div>`).join('');
   }
-  return `<div class="inv-desc-line"><span>${escapeHtml(q.description||'')}</span><span>$${Number(q.amount).toLocaleString()}</span></div>`;
+  return `<div>${escapeHtml(q.description||'')}</div>`;
+}
+
+function printQuotePDF(){
+  const q = quotes.find(x => x.id === activeQuoteId);
+  if(!q) return;
+  const html = buildQuotePaperHTML(q);
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Quote #${q.quoteNumber} - M&A Mowing</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+    @media print{body{margin:0;}@page{margin:0.5in;size:letter;}}
+  </style></head><body>${html}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  win.document.close();
 }
 
 function buildQuoteShareURL(q){
   const payload = {
     id: q.id, n: q.quoteNumber, name: q.customerName,
+    co: q.customerCompany||null, addr: q.customerAddress||null,
     items: q.items || null, desc: q.description || null,
-    amount: q.amount, date: q.date
+    amount: q.amount, date: q.date, validUntil: q.validUntil||null,
+    terms: q.terms||null, notes: q.notes||null
   };
   const encoded = btoa(encodeURIComponent(JSON.stringify(payload)))
     .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -4686,20 +4831,15 @@ function tryRenderPublicQuote(){
     const b64 = encoded.replace(/-/g,'+').replace(/_/g,'/');
     const payload = JSON.parse(decodeURIComponent(atob(b64)));
     _sigQuoteId = payload.id || null;
-    document.getElementById('publicQuotePaper').innerHTML = `
-      <img class="inv-logo" src="logo.png" alt="M&A Mowing">
-      <div class="inv-business">M&amp;A Mowing</div>
-      <div class="inv-sub">Quote #${escapeHtml(String(payload.n))}</div>
-      <div class="inv-row"><span>For</span><span>${escapeHtml(payload.name)}</span></div>
-      <div class="inv-row"><span>Date</span><span>${formatDateShort(payload.date)}</span></div>
-      <div class="inv-divider"></div>
-      ${payload.items && payload.items.length ? payload.items.map(it => `
-        <div style="margin-bottom:6px;">
-          <div style="font-weight:700;font-size:14px;">• ${escapeHtml(it.text)}</div>
-          ${it.subs && it.subs.filter(s=>s.trim()).map(s=>`<div style="margin-left:14px;font-size:12px;color:#555;">– ${escapeHtml(s)}</div>`).join('')}
-        </div>`).join('') : `<div class="inv-desc-line"><span>${escapeHtml(payload.desc||'')}</span><span>$${Number(payload.amount).toLocaleString()}</span></div>`}
-      <div class="inv-total-row"><span>Quoted Price</span><span>$${Number(payload.amount).toLocaleString()}</span></div>
-    `;
+    const fakeQ = {
+      quoteNumber: payload.n, customerName: payload.name,
+      customerCompany: payload.co||null, customerAddress: payload.addr||null,
+      phone: null, email: null,
+      items: payload.items||null, description: payload.desc||null,
+      amount: payload.amount, date: payload.date,
+      validUntil: payload.validUntil||null, terms: payload.terms||null, notes: payload.notes||null
+    };
+    document.getElementById('publicQuotePaper').innerHTML = buildQuotePaperHTML(fakeQ);
     document.title = 'Quote for ' + payload.name + ' — M&A Mowing';
     document.getElementById('publicQuoteView').style.display = 'block';
     document.querySelector('.wrap').style.display = 'none';
