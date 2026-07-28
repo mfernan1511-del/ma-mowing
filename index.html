@@ -4221,86 +4221,106 @@ function buildQuotePaperHTML(q){
       }).join('')
     : `<tr><td colspan="4" style="padding:10px 8px;border-bottom:1px solid #e8ecef;font-size:13px;color:#1a2e3b;">${escapeHtml(q.description||'Services')}</td></tr>`;
 
+  const notesList = (Array.isArray(q.notes) ? q.notes : (q.notes ? [q.notes] : [])).filter(n=>n&&n.trim());
+
   return `
-  <div id="quotePrintArea" style="background:#fff;color:#1a2e3b;border-radius:14px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-
-    <!-- Header bar -->
-    <div style="background:linear-gradient(135deg,#0f4c35 0%,#1a6b4a 60%,#2d8a60 100%);padding:28px 30px;display:flex;justify-content:space-between;align-items:flex-start;">
+  <style>
+    .qp-wrap{background:#fff;color:#1a2e3b;border-radius:14px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+    .qp-header{background:linear-gradient(135deg,#0f4c35 0%,#1a6b4a 60%,#2d8a60 100%);padding:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+    .qp-bill{display:flex;flex-wrap:wrap;border-bottom:1px solid #e8ecef;}
+    .qp-bill-to{flex:1;min-width:140px;padding:14px 16px;border-right:1px solid #e8ecef;}
+    .qp-bill-from{flex:1;min-width:140px;padding:14px 16px;}
+    .qp-label{font-size:9px;font-weight:800;letter-spacing:.12em;color:#6b7f8a;text-transform:uppercase;margin-bottom:6px;}
+    .qp-name{font-size:14px;font-weight:700;color:#1a2e3b;}
+    .qp-sub{font-size:11px;color:#6b7f8a;margin-top:2px;word-break:break-word;}
+    .qp-table-wrap{padding:0 12px;}
+    .qp-table{width:100%;border-collapse:collapse;}
+    .qp-th{padding:8px 6px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;white-space:nowrap;}
+    .qp-td{padding:10px 6px;border-bottom:1px solid #e8ecef;font-size:12px;vertical-align:top;}
+    .qp-td-desc{color:#1a2e3b;font-weight:600;word-break:break-word;}
+    .qp-td-num{text-align:right;color:#4a5c66;white-space:nowrap;}
+    .qp-td-total{text-align:right;font-weight:700;color:#1a2e3b;white-space:nowrap;}
+    .qp-totals{display:flex;justify-content:flex-end;padding:12px 16px 16px;}
+    .qp-total-box{min-width:180px;}
+    .qp-total-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:2px solid #0f4c35;}
+    .qp-notes{margin:0 12px 16px;background:#f7f9fa;border-left:3px solid #0f4c35;border-radius:0 8px 8px 0;padding:10px 14px;}
+    .qp-footer{background:#f7f9fa;border-top:1px solid #e8ecef;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;}
+    @media(min-width:480px){
+      .qp-header{padding:24px 28px;}
+      .qp-bill-to,.qp-bill-from{padding:18px 24px;}
+      .qp-table-wrap{padding:0 20px;}
+      .qp-totals{padding:14px 24px 18px;}
+      .qp-notes{margin:0 20px 18px;}
+      .qp-footer{padding:12px 24px;}
+      .qp-th{font-size:10px;}
+      .qp-td{font-size:13px;}
+    }
+  </style>
+  <div class="qp-wrap">
+    <div class="qp-header">
       <div>
-        <img src="logo.png" alt="M&A Mowing" style="height:52px;width:52px;border-radius:10px;object-fit:cover;background:#fff;padding:3px;margin-bottom:8px;display:block;">
-        <div style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-.3px;">M&amp;A Mowing</div>
-        <div style="color:rgba(255,255,255,.7);font-size:12px;margin-top:2px;">Professional Lawn Care Services</div>
+        <img src="logo.png" alt="M&A Mowing" style="height:46px;width:46px;border-radius:10px;object-fit:cover;background:#fff;padding:3px;margin-bottom:6px;display:block;">
+        <div style="color:#fff;font-size:18px;font-weight:800;">M&amp;A Mowing</div>
+        <div style="color:rgba(255,255,255,.7);font-size:11px;margin-top:1px;">Professional Lawn Care Services</div>
       </div>
-      <div style="text-align:right;">
-        <div style="background:rgba(255,255,255,.15);border-radius:8px;padding:8px 14px;display:inline-block;margin-bottom:10px;">
-          <div style="color:rgba(255,255,255,.7);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Quote</div>
-          <div style="color:#fff;font-size:22px;font-weight:800;">#${q.quoteNumber}</div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="background:rgba(255,255,255,.15);border-radius:8px;padding:6px 12px;display:inline-block;margin-bottom:8px;">
+          <div style="color:rgba(255,255,255,.7);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Quote</div>
+          <div style="color:#fff;font-size:20px;font-weight:800;">#${q.quoteNumber}</div>
         </div>
-        <div style="color:rgba(255,255,255,.8);font-size:12px;">Date: ${formatDateShort(q.date)}</div>
-        ${q.validUntil ? `<div style="color:rgba(255,255,255,.8);font-size:12px;margin-top:2px;">Valid until: ${formatDateShort(q.validUntil)}</div>` : ''}
+        <div style="color:rgba(255,255,255,.8);font-size:11px;">Date: ${formatDateShort(q.date)}</div>
+        ${q.validUntil ? `<div style="color:rgba(255,255,255,.8);font-size:11px;margin-top:2px;">Valid: ${formatDateShort(q.validUntil)}</div>` : ''}
       </div>
     </div>
 
-    <!-- Bill to / from -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid #e8ecef;">
-      <div style="padding:20px 30px;border-right:1px solid #e8ecef;">
-        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;color:#6b7f8a;text-transform:uppercase;margin-bottom:8px;">Prepared For</div>
-        <div style="font-size:15px;font-weight:700;color:#1a2e3b;">${escapeHtml(q.customerName)}</div>
-        ${q.customerCompany ? `<div style="font-size:13px;color:#4a5c66;margin-top:2px;">${escapeHtml(q.customerCompany)}</div>` : ''}
-        ${q.customerAddress ? `<div style="font-size:12px;color:#6b7f8a;margin-top:3px;">${escapeHtml(q.customerAddress)}</div>` : ''}
-        ${q.phone ? `<div style="font-size:12px;color:#6b7f8a;margin-top:3px;">📞 ${escapeHtml(q.phone)}</div>` : ''}
-        ${q.email ? `<div style="font-size:12px;color:#6b7f8a;margin-top:2px;">✉️ ${escapeHtml(q.email)}</div>` : ''}
+    <div class="qp-bill">
+      <div class="qp-bill-to">
+        <div class="qp-label">Prepared For</div>
+        <div class="qp-name">${escapeHtml(q.customerName)}</div>
+        ${q.customerCompany ? `<div class="qp-sub">${escapeHtml(q.customerCompany)}</div>` : ''}
+        ${q.customerAddress ? `<div class="qp-sub">${escapeHtml(q.customerAddress)}</div>` : ''}
+        ${q.phone ? `<div class="qp-sub">📞 ${escapeHtml(q.phone)}</div>` : ''}
+        ${q.email ? `<div class="qp-sub">✉️ ${escapeHtml(q.email)}</div>` : ''}
       </div>
-      <div style="padding:20px 30px;">
-        <div style="font-size:10px;font-weight:800;letter-spacing:.12em;color:#6b7f8a;text-transform:uppercase;margin-bottom:8px;">From</div>
-        <div style="font-size:15px;font-weight:700;color:#1a2e3b;">M&amp;A Mowing</div>
-        <div style="font-size:12px;color:#6b7f8a;margin-top:3px;">📞 (904) 303-8503</div>
-        <div style="font-size:12px;color:#6b7f8a;margin-top:2px;">✉️ adolfo.fernandez@fnf.com</div>
-        ${q.terms ? `<div style="font-size:12px;color:#0f4c35;font-weight:600;margin-top:8px;background:#f0faf5;border-radius:6px;padding:4px 8px;">💳 ${escapeHtml(q.terms)}</div>` : ''}
+      <div class="qp-bill-from">
+        <div class="qp-label">From</div>
+        <div class="qp-name">M&amp;A Mowing</div>
+        <div class="qp-sub">📞 (904) 303-8503</div>
+        <div class="qp-sub">✉️ adolfo.fernandez@fnf.com</div>
+        ${q.terms ? `<div style="font-size:11px;color:#0f4c35;font-weight:600;margin-top:6px;background:#f0faf5;border-radius:6px;padding:3px 7px;display:inline-block;">💳 ${escapeHtml(q.terms)}</div>` : ''}
       </div>
     </div>
 
-    <!-- Line items table -->
-    <div style="padding:0 30px;">
-      <table style="width:100%;border-collapse:collapse;margin:0;table-layout:fixed;">
-        <colgroup>
-          <col style="width:auto;">
-          <col style="width:50px;">
-          <col style="width:90px;">
-          <col style="width:90px;">
-        </colgroup>
+    <div class="qp-table-wrap">
+      <table class="qp-table">
         <thead>
           <tr style="background:#f7f9fa;">
-            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;word-break:break-word;">Description</th>
-            <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;">Qty</th>
-            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;">Unit Price</th>
-            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;">Total</th>
+            <th class="qp-th" style="text-align:left;">Service</th>
+            <th class="qp-th" style="text-align:center;width:36px;">Qty</th>
+            <th class="qp-th" style="text-align:right;width:70px;">Price</th>
+            <th class="qp-th" style="text-align:right;width:70px;">Total</th>
           </tr>
         </thead>
         <tbody>${itemRows}</tbody>
       </table>
     </div>
 
-    <!-- Totals -->
-    <div style="display:flex;justify-content:flex-end;padding:16px 30px 20px;">
-      <div style="min-width:220px;">
-        <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:2px solid #0f4c35;margin-top:4px;">
-          <span style="font-size:15px;font-weight:800;color:#1a2e3b;">Total</span>
-          <span style="font-size:18px;font-weight:800;color:#0f4c35;">${fmt(total)}</span>
+    <div class="qp-totals">
+      <div class="qp-total-box">
+        <div class="qp-total-row">
+          <span style="font-size:14px;font-weight:800;color:#1a2e3b;">Total</span>
+          <span style="font-size:17px;font-weight:800;color:#0f4c35;">${fmt(total)}</span>
         </div>
       </div>
     </div>
 
-    ${(Array.isArray(q.notes) ? q.notes.filter(n=>n.trim()) : (q.notes ? [q.notes] : [])).length ? `
-    <div style="margin:0 30px 20px;background:#f7f9fa;border-left:3px solid #0f4c35;border-radius:0 8px 8px 0;padding:12px 16px;">
-      <div style="font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;margin-bottom:6px;">Description</div>
-      ${(Array.isArray(q.notes) ? q.notes : [q.notes]).filter(n=>n&&n.trim()).map(n =>
-        `<div style="font-size:12px;color:#4a5c66;line-height:1.6;display:flex;gap:6px;"><span>•</span><span>${escapeHtml(n)}</span></div>`
-      ).join('')}
+    ${notesList.length ? `
+    <div class="qp-notes">
+      <div class="qp-label">Description</div>
+      ${notesList.map(n=>`<div style="font-size:12px;color:#4a5c66;line-height:1.6;display:flex;gap:6px;margin-top:2px;"><span>•</span><span>${escapeHtml(n)}</span></div>`).join('')}
     </div>` : ''}
 
-    <!-- Footer -->
-    <div style="background:#f7f9fa;border-top:1px solid #e8ecef;padding:14px 30px;display:flex;justify-content:space-between;align-items:center;">
+    <div class="qp-footer">
       <div style="font-size:11px;color:#6b7f8a;">Thank you for your business!</div>
       <div style="font-size:11px;color:#6b7f8a;">M&amp;A Mowing · Quote #${q.quoteNumber}</div>
     </div>
