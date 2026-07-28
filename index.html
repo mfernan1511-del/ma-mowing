@@ -4235,13 +4235,19 @@ function buildQuotePaperHTML(q){
 
     <!-- Line items table -->
     <div style="padding:0 30px;">
-      <table style="width:100%;border-collapse:collapse;margin:0;">
+      <table style="width:100%;border-collapse:collapse;margin:0;table-layout:fixed;">
+        <colgroup>
+          <col style="width:auto;">
+          <col style="width:50px;">
+          <col style="width:90px;">
+          <col style="width:90px;">
+        </colgroup>
         <thead>
           <tr style="background:#f7f9fa;">
-            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;">Description</th>
-            <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;width:60px;">Qty</th>
-            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;width:90px;">Unit Price</th>
-            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;width:90px;">Total</th>
+            <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;word-break:break-word;">Description</th>
+            <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;">Qty</th>
+            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;">Unit Price</th>
+            <th style="padding:10px 8px;text-align:right;font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;">Total</th>
           </tr>
         </thead>
         <tbody>${itemRows}</tbody>
@@ -4290,21 +4296,22 @@ async function printQuotePDF(){
   const filename = prompt('Name this PDF:', defaultName);
   if(filename === null) return; // cancelled
   showToast('Generating PDF…');
+  const QUOTE_W = 680;
   const div = document.createElement('div');
-  div.style.cssText = 'position:absolute;left:-9999px;top:0;width:800px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:visible;';
+  div.style.cssText = `position:absolute;left:-9999px;top:0;width:${QUOTE_W}px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden;box-sizing:border-box;`;
   div.innerHTML = buildQuotePaperHTML(q);
   document.body.appendChild(div);
   try {
-    await new Promise(r => setTimeout(r, 200)); // let images render
+    await new Promise(r => setTimeout(r, 300));
+    const h = div.scrollHeight;
     const canvas = await html2canvas(div, {
       scale: 2, useCORS: true, backgroundColor: '#fff', logging: false,
-      width: 800, windowWidth: 800
+      width: QUOTE_W, height: h, windowWidth: QUOTE_W, scrollX: 0, scrollY: 0
     });
     const { jsPDF } = window.jspdf;
-    const pdfW = 800;
-    const pdfH = Math.round(canvas.height / canvas.width * pdfW);
-    const pdf = new jsPDF({ orientation:'portrait', unit:'pt', format:[pdfW, pdfH] });
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdfW, pdfH);
+    const pdfH = Math.round(canvas.height / canvas.width * QUOTE_W);
+    const pdf = new jsPDF({ orientation:'portrait', unit:'pt', format:[QUOTE_W, pdfH] });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, QUOTE_W, pdfH);
     pdf.save((filename || defaultName).replace(/\.pdf$/i,'') + '.pdf');
     showToast('PDF saved — drag it into your email ✅');
   } catch(e) {
