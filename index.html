@@ -1350,7 +1350,8 @@ if(new URLSearchParams(location.search).get('quote')){
       <img id="quoteQRImg" src="" alt="QR Code" style="width:180px;height:180px;border-radius:12px;background:#fff;padding:8px;">
       <p style="font-size:12px;color:rgba(251,248,238,.5);margin-top:8px;">Customer scans this to view &amp; save the quote on their phone</p>
     </div>
-    <div class="cal-actions" id="quoteDeleteWrap" style="display:none;">
+    <div class="cal-actions" id="quoteDeleteWrap" style="display:none;gap:8px;">
+      <button class="pill-btn" onclick="openQuoteEdit()">✏️ Edit Quote</button>
       <button class="pill-btn" onclick="deleteQuote()">🗑 Delete Quote</button>
     </div>
     <button class="modal-close" onclick="closeQuoteView()">Close</button>
@@ -4315,6 +4316,55 @@ function openQuoteView(id){
   document.getElementById('quoteQRWrap').style.display = 'none';
   document.getElementById('quoteDeleteWrap').style.display = canEdit() ? 'block' : 'none';
   document.getElementById('quoteViewOverlay').classList.add('show');
+}
+
+function openQuoteEdit(){
+  const q = quotes.find(x => x.id === activeQuoteId);
+  if(!q) return;
+  closeQuoteView();
+  document.getElementById('quoteNameInput').value = q.customerName || '';
+  document.getElementById('quoteCompanyInput').value = q.customerCompany || '';
+  document.getElementById('quoteAddressInput').value = q.customerAddress || '';
+  document.getElementById('quotePhoneInput').value = q.phone || '';
+  document.getElementById('quoteEmailInput').value = q.email || '';
+  document.getElementById('quoteTermsInput').value = q.terms || 'Due upon completion';
+  document.getElementById('quoteNotesInput').value = q.notes || '';
+  document.getElementById('quoteDateInput').value = q.date || new Date().toISOString().slice(0,10);
+  document.getElementById('quoteExpiryInput').value = q.validUntil || '';
+  document.getElementById('quoteNameDropdown').style.display = 'none';
+  _quoteItems = (q.items && q.items.length) ? q.items.map(it=>({...it, subs: it.subs||[]})) : [{ text: q.description||'', qty:1, unitPrice: q.amount||0, subs:[] }];
+  renderQuoteItemsBuilder();
+  updateQuoteTotal();
+  // Switch save button to update mode
+  const saveBtn = document.querySelector('#quoteCreateOverlay .pill-btn.primary');
+  saveBtn.textContent = 'Save Changes';
+  saveBtn.onclick = () => saveQuoteEdit(q.id);
+  document.getElementById('quoteCreateOverlay').classList.add('show');
+}
+
+function saveQuoteEdit(id){
+  const q = quotes.find(x => x.id === id);
+  if(!q) return;
+  q.customerName = document.getElementById('quoteNameInput').value.trim();
+  q.customerCompany = document.getElementById('quoteCompanyInput').value.trim();
+  q.customerAddress = document.getElementById('quoteAddressInput').value.trim();
+  q.phone = document.getElementById('quotePhoneInput').value.trim();
+  q.email = document.getElementById('quoteEmailInput').value.trim();
+  q.terms = document.getElementById('quoteTermsInput').value.trim();
+  q.notes = document.getElementById('quoteNotesInput').value.trim();
+  q.date = document.getElementById('quoteDateInput').value;
+  q.validUntil = document.getElementById('quoteExpiryInput').value;
+  q.items = _quoteItems.filter(it => it.text.trim());
+  q.amount = q.items.reduce((s,it) => s + (it.qty||1)*(it.unitPrice||0), 0);
+  if(!q.customerName || !q.items.length){ showToast('Enter a name and at least one item'); return; }
+  syncMainDoc();
+  // Reset save button back to create mode
+  const saveBtn = document.querySelector('#quoteCreateOverlay .pill-btn.primary');
+  saveBtn.textContent = 'Create Quote';
+  saveBtn.onclick = saveNewQuote;
+  document.getElementById('quoteCreateOverlay').classList.remove('show');
+  showToast('Quote updated ✅');
+  renderQuotes();
 }
 
 function closeQuoteView(){
