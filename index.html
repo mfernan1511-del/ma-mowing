@@ -4355,16 +4355,7 @@ function printQuotePDF(){
 }
 
 function buildQuoteShareURL(q){
-  const payload = {
-    id: q.id, n: q.quoteNumber, name: q.customerName,
-    co: q.customerCompany||null, addr: q.customerAddress||null,
-    items: q.items || null, desc: q.description || null,
-    amount: q.amount, date: q.date, validUntil: q.validUntil||null,
-    terms: q.terms||null, notes: q.notes||null
-  };
-  const encoded = btoa(encodeURIComponent(JSON.stringify(payload)))
-    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-  return location.origin + location.pathname + '?quote=' + encoded;
+  return location.origin + location.pathname + '?quote=' + q.id;
 }
 
 function openQuoteView(id){
@@ -4936,50 +4927,44 @@ let _sigDrawing = false;
 let _sigHasMark = false;
 
 function tryRenderPublicQuote(){
-  const encoded = new URLSearchParams(location.search).get('quote');
-  if(!encoded) return false;
-  try{
-    const b64 = encoded.replace(/-/g,'+').replace(/_/g,'/');
-    const payload = JSON.parse(decodeURIComponent(atob(b64)));
-    _sigQuoteId = payload.id || null;
-    const fakeQ = {
-      quoteNumber: payload.n, customerName: payload.name,
-      customerCompany: payload.co||null, customerAddress: payload.addr||null,
-      phone: null, email: null,
-      items: payload.items||null, description: payload.desc||null,
-      amount: payload.amount, date: payload.date,
-      validUntil: payload.validUntil||null, terms: payload.terms||null, notes: payload.notes||null
-    };
-    document.getElementById('publicQuotePaper').innerHTML = buildQuotePaperHTML(fakeQ);
-    document.title = 'Quote for ' + payload.name + ' — M&A Mowing';
-    document.getElementById('publicQuoteView').style.display = 'block';
-    document.querySelector('.wrap').style.display = 'none';
+  const quoteId = new URLSearchParams(location.search).get('quote');
+  if(!quoteId) return false;
+
+  // Show loading, hide app
+  document.getElementById('publicQuoteView').style.display = 'block';
+  document.querySelector('.wrap').style.display = 'none';
+
+  const firebaseConfig = {
+    apiKey:"AIzaSyDnB0-iq-Tctucniyj6PxKkOQQ9oAYbVY0",
+    projectId:"project-1477159610605214064",
+    appId:"1:1088015079144:web:d3a8d93534d7a9e3449b5d"
+  };
+  if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const db2 = firebase.firestore();
+
+  // Load quote from main doc
+  db2.collection('appData').doc('main').get().then(doc => {
     const ls = document.getElementById('appLoadingScreen');
     if(ls) ls.style.display = 'none';
+    if(!doc.exists){ document.getElementById('publicQuotePaper').innerHTML = '<p style="padding:20px;color:#555;">Quote not found.</p>'; initSigCanvas(); return; }
+    const quotes = doc.data().quotes || [];
+    const q = quotes.find(x => x.id === quoteId);
+    if(!q){ document.getElementById('publicQuotePaper').innerHTML = '<p style="padding:20px;color:#555;">Quote not found.</p>'; initSigCanvas(); return; }
+    _sigQuoteId = q.id;
+    document.getElementById('publicQuotePaper').innerHTML = buildQuotePaperHTML(q);
+    document.title = 'Quote for ' + q.customerName + ' — M&A Mowing';
+    // Check signature
+    db2.collection('signatures').doc(q.id).get().then(sigDoc => {
+      if(sigDoc.exists){ showSignedState(sigDoc.data().signedAt); } else { initSigCanvas(); }
+    }).catch(() => initSigCanvas());
+  }).catch(() => {
+    const ls = document.getElementById('appLoadingScreen');
+    if(ls) ls.style.display = 'none';
+    document.getElementById('publicQuotePaper').innerHTML = '<p style="padding:20px;color:#555;">Failed to load quote. Check your connection.</p>';
+    initSigCanvas();
+  });
 
-    // Check if already signed
-    if(_sigQuoteId){
-      const firebaseConfig = {
-        apiKey:"AIzaSyDnB0-iq-Tctucniyj6PxKkOQQ9oAYbVY0",
-        projectId:"project-1477159610605214064",
-        appId:"1:1088015079144:web:d3a8d93534d7a9e3449b5d"
-      };
-      if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-      const db2 = firebase.firestore();
-      db2.collection('signatures').doc(_sigQuoteId).get().then(doc => {
-        if(doc.exists){
-          showSignedState(doc.data().signedAt);
-        } else {
-          initSigCanvas();
-        }
-      }).catch(() => initSigCanvas());
-    } else {
-      initSigCanvas();
-    }
-    return true;
-  }catch(e){
-    return false;
-  }
+  return true;
 }
 
 function showSignedState(signedAt){
