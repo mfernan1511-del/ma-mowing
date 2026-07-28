@@ -1373,6 +1373,8 @@ if(new URLSearchParams(location.search).get('quote')){
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -4281,18 +4283,28 @@ function buildQuoteItemsHTML(q){
   return `<div>${escapeHtml(q.description||'')}</div>`;
 }
 
-function printQuotePDF(){
+async function printQuotePDF(){
   const q = quotes.find(x => x.id === activeQuoteId);
   if(!q) return;
-  const html = buildQuotePaperHTML(q);
-  const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><title>Quote #${q.quoteNumber} - M&A Mowing</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
-    @media print{body{margin:0;}@page{margin:0.5in;size:letter;}}
-  </style></head><body>${html}<script>window.onload=function(){window.print();}<\/script></body></html>`);
-  win.document.close();
+  showToast('Generating PDF…');
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;left:-9999px;top:0;width:700px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+  div.innerHTML = buildQuotePaperHTML(q);
+  document.body.appendChild(div);
+  try {
+    const canvas = await html2canvas(div, { scale:2, useCORS:true, backgroundColor:'#fff', logging:false });
+    const { jsPDF } = window.jspdf;
+    const imgW = 595; // A4 width in px at 72dpi
+    const imgH = Math.round(canvas.height / canvas.width * imgW);
+    const pdf = new jsPDF({ orientation:'portrait', unit:'pt', format:[imgW, imgH] });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, imgH);
+    pdf.save(`Quote-${q.quoteNumber}-${q.customerName.replace(/\s+/g,'-')}.pdf`);
+    showToast('PDF saved — drag it into your email ✅');
+  } catch(e) {
+    showToast('PDF failed: ' + e.message);
+  } finally {
+    document.body.removeChild(div);
+  }
 }
 
 function buildQuoteShareURL(q){
