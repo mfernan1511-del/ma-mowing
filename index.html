@@ -1309,9 +1309,9 @@ if(new URLSearchParams(location.search).get('quote')){
       <input type="email" id="quoteEmailInput" class="receipt-input" placeholder="Email">
     </div>
 
-    <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:rgba(251,248,238,.45);margin:14px 0 8px;">LINE ITEMS</div>
+    <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:rgba(251,248,238,.45);margin:14px 0 8px;">SERVICES</div>
     <div id="quoteItemsList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
-    <button type="button" onclick="addQuoteItem()" style="width:100%;padding:9px;border:1.5px dashed rgba(255,255,255,.25);border-radius:8px;background:transparent;color:rgba(251,248,238,.6);font-size:13px;font-weight:700;cursor:pointer;">＋ Add Line Item</button>
+    <button type="button" onclick="addQuoteItem()" style="width:100%;padding:9px;border:1.5px dashed rgba(255,255,255,.25);border-radius:8px;background:transparent;color:rgba(251,248,238,.6);font-size:13px;font-weight:700;cursor:pointer;">＋ Add Service</button>
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:10px 14px;background:rgba(255,255,255,.06);border-radius:10px;">
       <span style="font-weight:800;font-size:14px;">Total</span>
@@ -4452,8 +4452,9 @@ function sendQuoteMessage(){
   if(!q) return;
   if(!q.phone){ showToast('No phone number saved for this quote'); return; }
   const digits = q.phone.replace(/[^\d+]/g, '');
+  const total = '$' + Number(q.amount).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const message = encodeURIComponent(
-    `Hi ${q.customerName}, here's your quote from M&A Mowing for ${q.description}: $${Number(q.amount).toLocaleString()}. View it here: ${buildQuoteShareURL(q)}`
+    `Hi ${q.customerName}! Here's your quote from M&A Mowing for ${total}.\n\nTap to view & sign:\n${buildQuoteShareURL(q)}`
   );
   window.location.href = `sms:${digits}?body=${message}`;
 }
