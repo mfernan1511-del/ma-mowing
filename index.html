@@ -1330,7 +1330,9 @@ if(new URLSearchParams(location.search).get('quote')){
       </div>
     </div>
     <input type="text" id="quoteTermsInput" class="receipt-input" placeholder="Payment terms (e.g. Due upon completion)">
-    <textarea id="quoteNotesInput" class="receipt-input" rows="2" placeholder="Notes or additional info..." style="resize:vertical;font-family:inherit;"></textarea>
+    <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:rgba(251,248,238,.45);margin:4px 0 6px;">DESCRIPTION LINES <span style="font-weight:400;font-style:italic;opacity:.7;">(shown in notes section of PDF)</span></div>
+    <div id="quoteNotesList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+    <button type="button" onclick="addQuoteNote()" style="width:100%;padding:8px;border:1.5px dashed rgba(255,255,255,.2);border-radius:8px;background:transparent;color:rgba(251,248,238,.55);font-size:12px;font-weight:700;cursor:pointer;">＋ Add Description Line</button>
 
     <button class="pill-btn primary" style="width:100%;margin-top:14px;" onclick="saveNewQuote()">Create Quote</button>
     <button class="modal-close" onclick="closeQuoteCreate()">Cancel</button>
@@ -3946,7 +3948,8 @@ function deleteInvoice(){
 }
 
 /* ---- Quotes ---- */
-let _quoteItems = []; // [{ text: string, subs: string[] }]
+let _quoteItems = [];
+let _quoteNotes = [];
 
 function openQuoteCreate(){
   if(!canEdit()) return;
@@ -3956,7 +3959,8 @@ function openQuoteCreate(){
   document.getElementById('quotePhoneInput').value = '';
   document.getElementById('quoteEmailInput').value = '';
   document.getElementById('quoteTermsInput').value = 'Due upon completion';
-  document.getElementById('quoteNotesInput').value = '';
+  _quoteNotes = [''];
+  renderQuoteNotesList();
   const today = new Date().toISOString().slice(0,10);
   const expiry = new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10);
   document.getElementById('quoteDateInput').value = today;
@@ -3997,6 +4001,30 @@ function renderQuoteItemsBuilder(){
           <button onclick="removeQuoteSub(${i},${si})" style="background:transparent;border:none;color:rgba(255,100,100,.5);font-size:13px;cursor:pointer;padding:0 2px;">✕</button>
         </div>`).join('')}
     </div>`).join('');
+}
+
+function renderQuoteNotesList(){
+  const el = document.getElementById('quoteNotesList');
+  if(!el) return;
+  el.innerHTML = _quoteNotes.map((n, i) => `
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span style="opacity:.4;font-size:12px;">•</span>
+      <input type="text" value="${escapeHtml(n)}" oninput="_quoteNotes[${i}]=this.value"
+        placeholder="Description line..."
+        style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:inherit;font-size:13px;padding:8px 10px;outline:none;">
+      <button onclick="removeQuoteNote(${i})" style="background:transparent;border:none;color:rgba(255,100,100,.6);font-size:15px;cursor:pointer;padding:0 4px;">✕</button>
+    </div>`).join('');
+}
+
+function addQuoteNote(){
+  _quoteNotes.push('');
+  renderQuoteNotesList();
+  setTimeout(()=>{ const ins = document.querySelectorAll('#quoteNotesList input'); if(ins.length) ins[ins.length-1].focus(); }, 50);
+}
+
+function removeQuoteNote(i){
+  _quoteNotes.splice(i,1);
+  renderQuoteNotesList();
 }
 
 function updateQuoteTotal(){
@@ -4063,7 +4091,7 @@ function saveNewQuote(){
   const phone = document.getElementById('quotePhoneInput').value.trim();
   const email = document.getElementById('quoteEmailInput').value.trim();
   const terms = document.getElementById('quoteTermsInput').value.trim();
-  const notes = document.getElementById('quoteNotesInput').value.trim();
+  const notes = _quoteNotes.filter(n => n.trim());
   const date = document.getElementById('quoteDateInput').value;
   const validUntil = document.getElementById('quoteExpiryInput').value;
   const items = _quoteItems.filter(it => it.text.trim());
@@ -4263,10 +4291,12 @@ function buildQuotePaperHTML(q){
       </div>
     </div>
 
-    ${q.notes ? `
+    ${(Array.isArray(q.notes) ? q.notes.filter(n=>n.trim()) : (q.notes ? [q.notes] : [])).length ? `
     <div style="margin:0 30px 20px;background:#f7f9fa;border-left:3px solid #0f4c35;border-radius:0 8px 8px 0;padding:12px 16px;">
-      <div style="font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;margin-bottom:4px;">Notes</div>
-      <div style="font-size:12px;color:#4a5c66;line-height:1.5;">${escapeHtml(q.notes)}</div>
+      <div style="font-size:10px;font-weight:800;letter-spacing:.1em;color:#6b7f8a;text-transform:uppercase;margin-bottom:6px;">Description</div>
+      ${(Array.isArray(q.notes) ? q.notes : [q.notes]).filter(n=>n&&n.trim()).map(n =>
+        `<div style="font-size:12px;color:#4a5c66;line-height:1.6;display:flex;gap:6px;"><span>•</span><span>${escapeHtml(n)}</span></div>`
+      ).join('')}
     </div>` : ''}
 
     <!-- Footer -->
@@ -4357,7 +4387,8 @@ function openQuoteEdit(){
   document.getElementById('quotePhoneInput').value = q.phone || '';
   document.getElementById('quoteEmailInput').value = q.email || '';
   document.getElementById('quoteTermsInput').value = q.terms || 'Due upon completion';
-  document.getElementById('quoteNotesInput').value = q.notes || '';
+  _quoteNotes = Array.isArray(q.notes) ? [...q.notes] : (q.notes ? [q.notes] : ['']);
+  renderQuoteNotesList();
   document.getElementById('quoteDateInput').value = q.date || new Date().toISOString().slice(0,10);
   document.getElementById('quoteExpiryInput').value = q.validUntil || '';
   document.getElementById('quoteNameDropdown').style.display = 'none';
@@ -4380,7 +4411,7 @@ function saveQuoteEdit(id){
   q.phone = document.getElementById('quotePhoneInput').value.trim();
   q.email = document.getElementById('quoteEmailInput').value.trim();
   q.terms = document.getElementById('quoteTermsInput').value.trim();
-  q.notes = document.getElementById('quoteNotesInput').value.trim();
+  q.notes = _quoteNotes.filter(n => n.trim());
   q.date = document.getElementById('quoteDateInput').value;
   q.validUntil = document.getElementById('quoteExpiryInput').value;
   q.items = _quoteItems.filter(it => it.text.trim());
