@@ -726,10 +726,14 @@ if(new URLSearchParams(location.search).get('quote')){
     </div>
 
     <div class="section">
-      <div class="section-head">
+      <div class="section-head" onclick="toggleChecklistCollapse()" style="cursor:pointer;">
         <h2>🎒 Day Checklist</h2>
-        <span class="count" id="checklistCount"></span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="count" id="checklistCount"></span>
+          <span id="checklistChevron" style="font-size:13px;opacity:.5;">▼</span>
+        </div>
       </div>
+      <div id="checklistBody">
       <div id="checklistItems"></div>
       <div id="checklistEditRow" style="display:none;margin-top:8px;">
         <div style="display:flex;gap:8px;">
@@ -738,6 +742,7 @@ if(new URLSearchParams(location.search).get('quote')){
         </div>
       </div>
       <button onclick="toggleChecklistEdit()" id="checklistEditBtn" style="margin-top:10px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:6px 14px;color:rgba(251,248,238,.5);font-size:12px;font-weight:700;cursor:pointer;">Edit Items</button>
+      </div><!-- /checklistBody -->
     </div>
 
     <div class="section">
@@ -2988,6 +2993,15 @@ function toggleChecklistItem(id){
   checked[id] = !checked[id];
   localStorage.setItem('checklist_checked', JSON.stringify(checked));
   renderChecklist();
+}
+
+let _checklistCollapsed = false;
+function toggleChecklistCollapse(){
+  _checklistCollapsed = !_checklistCollapsed;
+  const body = document.getElementById('checklistBody');
+  const chevron = document.getElementById('checklistChevron');
+  if(body) body.style.display = _checklistCollapsed ? 'none' : 'block';
+  if(chevron) chevron.textContent = _checklistCollapsed ? '▶' : '▼';
 }
 
 function toggleChecklistEdit(){
