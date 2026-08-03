@@ -1339,8 +1339,8 @@ if(new URLSearchParams(location.search).get('quote')){
   </div>
 </div>
 
-<div class="overlay" id="quoteViewOverlay">
-  <div class="modal invoice-modal" style="max-width:600px;">
+<div class="overlay" id="quoteViewOverlay" style="align-items:flex-start;overflow-y:auto;">
+  <div class="modal invoice-modal" style="max-width:600px;margin:auto;">
     <div id="quotePaper"></div>
     <div class="quote-share-row" style="flex-wrap:wrap;gap:8px;margin-top:16px;">
       <button class="pill-btn primary" onclick="printQuotePDF()" style="background:linear-gradient(135deg,#16a34a,#15803d);">⬇️ Download PDF</button>
