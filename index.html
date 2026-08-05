@@ -4008,15 +4008,15 @@ function renderQuoteItemsBuilder(){
         <button onclick="removeQuoteItem(${i})" style="background:transparent;border:none;color:rgba(255,100,100,.7);font-size:15px;cursor:pointer;padding:0;text-align:center;">✕</button>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-        <button onclick="addQuoteSub(${i})" style="background:transparent;border:none;color:rgba(251,248,238,.45);font-size:11px;cursor:pointer;padding:0;">＋ Add note</button>
+        <button onclick="addQuoteSub(${i})" style="background:transparent;border:none;color:rgba(251,248,238,.55);font-size:11px;cursor:pointer;padding:0;">• Add bullet point</button>
         <span style="font-size:12px;font-weight:800;color:var(--gold-300);">$${((item.qty||1)*(item.unitPrice||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
       </div>
       ${item.subs.map((s, si) => `
-        <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
-          <span style="opacity:.4;font-size:11px;">–</span>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:5px;background:rgba(255,255,255,.04);border-radius:6px;padding:5px 8px;">
+          <span style="color:rgba(251,248,238,.5);font-size:12px;flex-shrink:0;">•</span>
           <input type="text" value="${escapeHtml(s)}" oninput="_quoteItems[${i}].subs[${si}]=this.value"
-            placeholder="Note..."
-            style="flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.1);color:inherit;font-size:12px;padding:2px 0;outline:none;">
+            placeholder="Bullet point..."
+            style="flex:1;background:transparent;border:none;color:inherit;font-size:12px;padding:0;outline:none;">
           <button onclick="removeQuoteSub(${i},${si})" style="background:transparent;border:none;color:rgba(255,100,100,.5);font-size:13px;cursor:pointer;padding:0 2px;">✕</button>
         </div>`).join('')}
     </div>`).join('');
