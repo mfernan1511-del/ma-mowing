@@ -352,6 +352,7 @@
     backdrop-filter:blur(4px);
     display:none;align-items:center;justify-content:center;
     z-index:50;padding:20px;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
     animation:fadeIn .2s ease both;
   }
   .overlay.show{display:flex;}
@@ -362,6 +363,10 @@
     box-shadow:var(--shadow-lg);
     animation:popIn .3s cubic-bezier(.2,.9,.25,1.2) both;
     text-align:center;
+    margin:auto;
+    max-height:calc(100dvh - 40px);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
   }
   .modal h3{margin:0 0 4px;font-size:17px;}
   .modal p{margin:0 0 16px;font-size:13px;color:rgba(251,248,238,.6);}
@@ -1298,7 +1303,7 @@ if(new URLSearchParams(location.search).get('quote')){
   </div>
 </div>
 
-<div class="overlay" id="quoteCreateOverlay">
+<div class="overlay" id="quoteCreateOverlay" style="align-items:flex-start;overflow-y:auto;">
   <div class="modal" style="max-width:520px;">
     <h3>📋 New Quote</h3>
 
