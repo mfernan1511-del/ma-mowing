@@ -4290,9 +4290,9 @@ function buildQuotePaperHTML(q){
             <div style="font-weight:600;color:#1a2e3b;font-size:13px;">${escapeHtml(it.text)}</div>
             ${(it.subs||[]).filter(s=>s.trim()).map(s=>`<div style="color:#1a2e3b;font-size:11px;margin-top:2px;">– ${escapeHtml(s)}</div>`).join('')}
           </td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:center;color:#1a2e3b;font-size:13px;">${it.qty||1}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;color:#1a2e3b;font-size:13px;">${fmt(it.unitPrice||0)}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;font-weight:700;color:#1a2e3b;font-size:13px;">${fmt(lineTotal)}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:center;color:#1a2e3b;font-size:13px;width:36px;white-space:nowrap;">${it.qty||1}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;color:#1a2e3b;font-size:13px;width:80px;white-space:nowrap;">${fmt(it.unitPrice||0)}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;font-weight:700;color:#1a2e3b;font-size:13px;width:80px;white-space:nowrap;">${fmt(lineTotal)}</td>
         </tr>`;
       }).join('')
     : `<tr><td colspan="4" style="padding:10px 8px;border-bottom:1px solid #e8ecef;font-size:13px;color:#1a2e3b;">${escapeHtml(q.description||'Services')}</td></tr>`;
