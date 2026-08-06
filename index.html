@@ -1550,8 +1550,79 @@ async function init(){
     if(activeTab === 'maintenance') renderMaintenance();
     if(activeTab === 'quotes') renderQuotes();
     if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
-  }, function(err){
-    showToast('Connection issue — check your internet');
+  }, async function(err){
+    console.error('mainDoc snapshot error:', err);
+    // Stream failed — fall back to a one-time get() so data still loads
+    try {
+      const doc = await mainDocRef.get();
+      if(doc.exists){
+        const d = doc.data();
+        clients = d.clients || [];
+        weekendIds = d.weekendIds || [];
+        weekendDates = d.weekendDates || {};
+        weekendPaid = d.weekendPaid || {};
+        weekendDone = d.weekendDone || {};
+        flagNotes = d.flagNotes || {};
+        completedJobs = d.completedJobs || [];
+        mileageLogs = d.mileageLogs || [];
+        invoices = d.invoices || [];
+        recurringClients = d.recurringClients || [];
+        messageTemplates = d.messageTemplates || [];
+        maintenanceTasks = d.maintenanceTasks || [];
+        personalTodos = d.personalTodos || [];
+        personalEvents = d.personalEvents || [];
+        checklistItems = d.checklistItems || [
+          { id:'cl1', text:'Gas can' },
+          { id:'cl2', text:'Lawn mower' },
+          { id:'cl3', text:'Weed trimmer' },
+          { id:'cl4', text:'Leaf blower' },
+          { id:'cl5', text:'Water' },
+          { id:'cl6', text:'Gloves' }
+        ];
+        quotes = d.quotes || [];
+        currentPin = d.pin || DEFAULT_PIN;
+        firstSnapshotLoaded = true;
+        const loadScreen = document.getElementById('appLoadingScreen');
+        if(loadScreen) loadScreen.style.display = 'none';
+        seedHistoricalJobs(d);
+        seedHistoricalJobsV2(d);
+        checkRecurringRevenue();
+        render();
+        if(activeTab === 'revenue') renderRevenue();
+        if(activeTab === 'messages') renderMessages();
+        if(activeTab === 'maintenance') renderMaintenance();
+        if(activeTab === 'quotes') renderQuotes();
+        if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
+        console.log('✅ Fallback get() loaded — clients:', clients.length, 'quotes:', quotes.length);
+        showToast('Loaded (offline mode — changes may not save)');
+        // Retry the live listener after 10 seconds
+        setTimeout(() => {
+          mainDocRef.onSnapshot(function(doc){
+            if(!doc.exists) return;
+            const d = doc.data();
+            clients = d.clients || []; weekendIds = d.weekendIds || [];
+            weekendDates = d.weekendDates || {}; weekendPaid = d.weekendPaid || {};
+            weekendDone = d.weekendDone || {}; flagNotes = d.flagNotes || {};
+            completedJobs = d.completedJobs || []; mileageLogs = d.mileageLogs || [];
+            invoices = d.invoices || []; recurringClients = d.recurringClients || [];
+            messageTemplates = d.messageTemplates || []; maintenanceTasks = d.maintenanceTasks || [];
+            personalTodos = d.personalTodos || []; personalEvents = d.personalEvents || [];
+            checklistItems = d.checklistItems || [];
+            quotes = d.quotes || []; currentPin = d.pin || DEFAULT_PIN;
+            firstSnapshotLoaded = true;
+            render();
+            if(activeTab === 'revenue') renderRevenue();
+            if(activeTab === 'messages') renderMessages();
+            if(activeTab === 'maintenance') renderMaintenance();
+            if(activeTab === 'quotes') renderQuotes();
+            console.log('✅ Retry listener connected');
+          }, function(e){ console.warn('Retry listener failed:', e); });
+        }, 10000);
+      }
+    } catch(e2) {
+      console.error('Fallback get() also failed:', e2);
+      showToast('⚠️ Could not load data — check internet');
+    }
   });
 
   receiptsCollRef.onSnapshot(function(snap){
