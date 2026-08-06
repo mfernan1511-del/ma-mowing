@@ -1484,6 +1484,8 @@ async function init(){
   }
 
   mainDocRef.onSnapshot(async function(doc){
+    const d2 = doc.exists ? doc.data() : null;
+    console.log('📦 SNAPSHOT fired — exists:', doc.exists, 'clients:', d2?.clients?.length, 'quotes:', d2?.quotes?.length);
     if(!doc.exists){
       let seedClients = [];
       try{
