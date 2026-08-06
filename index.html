@@ -1483,61 +1483,46 @@ async function init(){
     document.getElementById('tabRevenueBtn').style.display = 'none';
   }
 
-  mainDocRef.onSnapshot(async function(doc){
-    const d2 = doc.exists ? doc.data() : null;
-    console.log('📦 SNAPSHOT fired — exists:', doc.exists, 'clients:', d2?.clients?.length, 'quotes:', d2?.quotes?.length);
-    if(!doc.exists){
-      let seedClients = [];
-      try{
-        const res = await fetch('clients.json');
-        const data = await res.json();
-        seedClients = data.clients;
-      }catch(e){ seedClients = []; }
-      await mainDocRef.set({
-        clients: seedClients,
-        weekendIds: [],
-        weekendDates: {},
-        weekendPaid: {},
-        weekendDone: {},
-        flagNotes: {},
-        completedJobs: [],
-        mileageLogs: [],
-        invoices: [],
-        recurringClients: [],
-        messageTemplates: [
-          { id: 'msg_default', label: 'Weekend Reminder', text: 'Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?' }
-        ],
-        maintenanceTasks: [],
-        quotes: [],
-        pin: DEFAULT_PIN
-      });
-      return; // onSnapshot will fire again with the seeded data
+  function applyMainDocData(d){
+    // Safety: if Firebase returns suspiciously empty data but we have a local backup, use backup
+    let backup = null;
+    try { backup = JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e){}
+    const fbClients = d.clients || [];
+    const fbQuotes  = d.quotes  || [];
+    // If Firebase returned fewer clients than our backup, something went wrong — restore backup
+    if(backup && backup.clients && backup.clients.length > fbClients.length && fbClients.length === 0){
+      console.warn('⚠️ Firebase returned empty clients but backup has', backup.clients.length, '— using backup');
+      d = backup;
     }
-    const d = doc.data();
-    clients = d.clients || [];
-    weekendIds = d.weekendIds || [];
-    weekendDates = d.weekendDates || {};
-    weekendPaid = d.weekendPaid || {};
-    weekendDone = d.weekendDone || {};
-    flagNotes = d.flagNotes || {};
-    completedJobs = d.completedJobs || [];
-    mileageLogs = d.mileageLogs || [];
-    invoices = d.invoices || [];
+    clients          = d.clients          || [];
+    weekendIds       = d.weekendIds       || [];
+    weekendDates     = d.weekendDates     || {};
+    weekendPaid      = d.weekendPaid      || {};
+    weekendDone      = d.weekendDone      || {};
+    flagNotes        = d.flagNotes        || {};
+    completedJobs    = d.completedJobs    || [];
+    mileageLogs      = d.mileageLogs      || [];
+    invoices         = d.invoices         || [];
     recurringClients = d.recurringClients || [];
     messageTemplates = d.messageTemplates || [];
     maintenanceTasks = d.maintenanceTasks || [];
-    personalTodos = d.personalTodos || [];
-    personalEvents = d.personalEvents || [];
-    checklistItems = d.checklistItems || [
-      { id:'cl1', text:'Gas can' },
-      { id:'cl2', text:'Lawn mower' },
-      { id:'cl3', text:'Weed trimmer' },
-      { id:'cl4', text:'Leaf blower' },
-      { id:'cl5', text:'Water' },
-      { id:'cl6', text:'Gloves' }
+    personalTodos    = d.personalTodos    || [];
+    personalEvents   = d.personalEvents   || [];
+    checklistItems   = d.checklistItems   || [
+      { id:'cl1', text:'Gas can' }, { id:'cl2', text:'Lawn mower' },
+      { id:'cl3', text:'Weed trimmer' }, { id:'cl4', text:'Leaf blower' },
+      { id:'cl5', text:'Water' }, { id:'cl6', text:'Gloves' }
     ];
-    quotes = d.quotes || [];
-    currentPin = d.pin || DEFAULT_PIN;
+    quotes     = d.quotes     || [];
+    currentPin = d.pin        || DEFAULT_PIN;
+    // Save a local backup any time we have real data
+    if(clients.length > 0 || quotes.length > 0){
+      try { localStorage.setItem('ma_main_backup', JSON.stringify({
+        clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes,
+        completedJobs, mileageLogs, invoices, recurringClients, messageTemplates,
+        maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
+      })); } catch(e){}
+    }
     firstSnapshotLoaded = true;
     const loadScreen = document.getElementById('appLoadingScreen');
     if(loadScreen) loadScreen.style.display = 'none';
@@ -1545,82 +1530,52 @@ async function init(){
     seedHistoricalJobsV2(d);
     checkRecurringRevenue();
     render();
-    if(activeTab === 'revenue') renderRevenue();
-    if(activeTab === 'messages') renderMessages();
+    if(activeTab === 'revenue')     renderRevenue();
+    if(activeTab === 'messages')    renderMessages();
     if(activeTab === 'maintenance') renderMaintenance();
-    if(activeTab === 'quotes') renderQuotes();
+    if(activeTab === 'quotes')      renderQuotes();
     if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
+    console.log('✅ Data applied — clients:', clients.length, 'quotes:', quotes.length);
+  }
+
+  mainDocRef.onSnapshot(async function(doc){
+    console.log('📦 SNAPSHOT fired — exists:', doc.exists);
+    if(!doc.exists){
+      // Doc missing: check backup before seeding empty data
+      let backup = null;
+      try { backup = JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e){}
+      if(backup && backup.clients && backup.clients.length > 0){
+        console.warn('Doc missing but backup exists — restoring backup to Firebase');
+        await mainDocRef.set(backup);
+        return; // snapshot will re-fire with restored data
+      }
+      // Truly new install — seed from clients.json
+      let seedClients = [];
+      try{ const res = await fetch('clients.json'); const data = await res.json(); seedClients = data.clients; }catch(e){ seedClients = []; }
+      await mainDocRef.set({
+        clients: seedClients, weekendIds: [], weekendDates: {}, weekendPaid: {}, weekendDone: {},
+        flagNotes: {}, completedJobs: [], mileageLogs: [], invoices: [], recurringClients: [],
+        messageTemplates: [{ id:'msg_default', label:'Weekend Reminder', text:'Hello! We are cutting other yards in the area this weekend — would you like us to add yours to the list?' }],
+        maintenanceTasks: [], quotes: [], pin: DEFAULT_PIN
+      });
+      return;
+    }
+    applyMainDocData(doc.data());
   }, async function(err){
     console.error('mainDoc snapshot error:', err);
-    // Stream failed — fall back to a one-time get() so data still loads
+    // Stream failed — try a direct get(), then fall back to local backup
     try {
       const doc = await mainDocRef.get();
-      if(doc.exists){
-        const d = doc.data();
-        clients = d.clients || [];
-        weekendIds = d.weekendIds || [];
-        weekendDates = d.weekendDates || {};
-        weekendPaid = d.weekendPaid || {};
-        weekendDone = d.weekendDone || {};
-        flagNotes = d.flagNotes || {};
-        completedJobs = d.completedJobs || [];
-        mileageLogs = d.mileageLogs || [];
-        invoices = d.invoices || [];
-        recurringClients = d.recurringClients || [];
-        messageTemplates = d.messageTemplates || [];
-        maintenanceTasks = d.maintenanceTasks || [];
-        personalTodos = d.personalTodos || [];
-        personalEvents = d.personalEvents || [];
-        checklistItems = d.checklistItems || [
-          { id:'cl1', text:'Gas can' },
-          { id:'cl2', text:'Lawn mower' },
-          { id:'cl3', text:'Weed trimmer' },
-          { id:'cl4', text:'Leaf blower' },
-          { id:'cl5', text:'Water' },
-          { id:'cl6', text:'Gloves' }
-        ];
-        quotes = d.quotes || [];
-        currentPin = d.pin || DEFAULT_PIN;
-        firstSnapshotLoaded = true;
-        const loadScreen = document.getElementById('appLoadingScreen');
-        if(loadScreen) loadScreen.style.display = 'none';
-        seedHistoricalJobs(d);
-        seedHistoricalJobsV2(d);
-        checkRecurringRevenue();
-        render();
-        if(activeTab === 'revenue') renderRevenue();
-        if(activeTab === 'messages') renderMessages();
-        if(activeTab === 'maintenance') renderMaintenance();
-        if(activeTab === 'quotes') renderQuotes();
-        if(activeTab === 'receipts'){ renderReceipts(); renderBankTx(); }
-        console.log('✅ Fallback get() loaded — clients:', clients.length, 'quotes:', quotes.length);
-        showToast('Loaded (offline mode — changes may not save)');
-        // Retry the live listener after 10 seconds
-        setTimeout(() => {
-          mainDocRef.onSnapshot(function(doc){
-            if(!doc.exists) return;
-            const d = doc.data();
-            clients = d.clients || []; weekendIds = d.weekendIds || [];
-            weekendDates = d.weekendDates || {}; weekendPaid = d.weekendPaid || {};
-            weekendDone = d.weekendDone || {}; flagNotes = d.flagNotes || {};
-            completedJobs = d.completedJobs || []; mileageLogs = d.mileageLogs || [];
-            invoices = d.invoices || []; recurringClients = d.recurringClients || [];
-            messageTemplates = d.messageTemplates || []; maintenanceTasks = d.maintenanceTasks || [];
-            personalTodos = d.personalTodos || []; personalEvents = d.personalEvents || [];
-            checklistItems = d.checklistItems || [];
-            quotes = d.quotes || []; currentPin = d.pin || DEFAULT_PIN;
-            firstSnapshotLoaded = true;
-            render();
-            if(activeTab === 'revenue') renderRevenue();
-            if(activeTab === 'messages') renderMessages();
-            if(activeTab === 'maintenance') renderMaintenance();
-            if(activeTab === 'quotes') renderQuotes();
-            console.log('✅ Retry listener connected');
-          }, function(e){ console.warn('Retry listener failed:', e); });
-        }, 10000);
-      }
-    } catch(e2) {
-      console.error('Fallback get() also failed:', e2);
+      if(doc.exists){ applyMainDocData(doc.data()); return; }
+    } catch(e2){ console.error('get() fallback also failed:', e2); }
+    // Last resort: restore from local backup
+    let backup = null;
+    try { backup = JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e){}
+    if(backup){
+      console.warn('Using local backup');
+      applyMainDocData(backup);
+      showToast('Loaded from local backup — reconnecting…');
+    } else {
       showToast('⚠️ Could not load data — check internet');
     }
   });
@@ -1652,10 +1607,25 @@ async function init(){
 
 function syncMainDoc(){
   if(!firstSnapshotLoaded) return;
+  // Safety guard: never overwrite Firebase with empty data
+  let backup = null;
+  try { backup = JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e){}
+  if(clients.length === 0 && backup && backup.clients && backup.clients.length > 0){
+    console.warn('syncMainDoc blocked — in-memory clients empty but backup has data. Skipping write.');
+    return;
+  }
   mainDocRef.set({
     clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
   }, { merge: true })
-  .then(() => console.log('syncMainDoc OK — bankTransactions:', bankTransactions.length))
+  .then(() => {
+    console.log('syncMainDoc OK — clients:', clients.length, 'quotes:', quotes.length);
+    // Keep local backup in sync with what we just wrote
+    try { localStorage.setItem('ma_main_backup', JSON.stringify({
+      clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes,
+      completedJobs, mileageLogs, invoices, recurringClients, messageTemplates,
+      maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
+    })); } catch(e){}
+  })
   .catch(e => { console.error('syncMainDoc FAILED:', e); showToast('⚠️ Save failed: ' + e.message); });
 }
 
