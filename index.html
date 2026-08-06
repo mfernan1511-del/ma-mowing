@@ -4382,6 +4382,26 @@ function printQuotePDF(){
     /* quote styles */
     table{border-collapse:collapse;width:100%;}
     td,th{word-break:break-word;}
+    .qp-wrap{background:#fff;color:#1a2e3b;border-radius:14px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+    .qp-header{background:linear-gradient(135deg,#0f4c35 0%,#1a6b4a 60%,#2d8a60 100%);padding:24px 28px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+    .qp-bill{display:flex;border-bottom:1px solid #e8ecef;}
+    .qp-bill-to{flex:1;padding:18px 24px;border-right:1px solid #e8ecef;}
+    .qp-bill-from{flex:1;padding:18px 24px;}
+    .qp-label{font-size:9px;font-weight:800;letter-spacing:.12em;color:#1a2e3b;text-transform:uppercase;margin-bottom:6px;}
+    .qp-name{font-size:14px;font-weight:700;color:#1a2e3b;}
+    .qp-sub{font-size:11px;color:#1a2e3b;margin-top:2px;word-break:break-word;}
+    .qp-table-wrap{padding:0 20px;}
+    .qp-table{width:100%;border-collapse:collapse;}
+    .qp-th{padding:8px 6px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#1a2e3b;text-transform:uppercase;border-bottom:2px solid #e8ecef;white-space:nowrap;}
+    .qp-td{padding:10px 6px;border-bottom:1px solid #e8ecef;font-size:13px;vertical-align:top;}
+    .qp-td-desc{color:#1a2e3b;font-weight:600;word-break:break-word;}
+    .qp-td-num{text-align:right;color:#1a2e3b;white-space:nowrap;}
+    .qp-td-total{text-align:right;font-weight:700;color:#1a2e3b;white-space:nowrap;}
+    .qp-totals{display:flex;justify-content:flex-end;padding:14px 24px 18px;}
+    .qp-total-box{min-width:200px;}
+    .qp-total-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:2px solid #0f4c35;}
+    .qp-notes{margin:0 20px 18px;background:#f7f9fa;border-left:3px solid #0f4c35;border-radius:0 8px 8px 0;padding:10px 14px;}
+    .qp-footer{background:#f7f9fa;border-top:1px solid #e8ecef;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;}
   </style>
   </head><body>
   <div class="no-print print-bar">
