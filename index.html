@@ -4231,10 +4231,10 @@ function buildQuotePaperHTML(q){
         <tr>
           <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;vertical-align:top;">
             <div style="font-weight:600;color:#1a2e3b;font-size:13px;">${escapeHtml(it.text)}</div>
-            ${(it.subs||[]).filter(s=>s.trim()).map(s=>`<div style="color:#6b7f8a;font-size:11px;margin-top:2px;">– ${escapeHtml(s)}</div>`).join('')}
+            ${(it.subs||[]).filter(s=>s.trim()).map(s=>`<div style="color:#1a2e3b;font-size:11px;margin-top:2px;">– ${escapeHtml(s)}</div>`).join('')}
           </td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:center;color:#4a5c66;font-size:13px;">${it.qty||1}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;color:#4a5c66;font-size:13px;">${fmt(it.unitPrice||0)}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:center;color:#1a2e3b;font-size:13px;">${it.qty||1}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;color:#1a2e3b;font-size:13px;">${fmt(it.unitPrice||0)}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #e8ecef;text-align:right;font-weight:700;color:#1a2e3b;font-size:13px;">${fmt(lineTotal)}</td>
         </tr>`;
       }).join('')
@@ -4249,15 +4249,15 @@ function buildQuotePaperHTML(q){
     .qp-bill{display:flex;flex-wrap:wrap;border-bottom:1px solid #e8ecef;}
     .qp-bill-to{flex:1;min-width:140px;padding:14px 16px;border-right:1px solid #e8ecef;}
     .qp-bill-from{flex:1;min-width:140px;padding:14px 16px;}
-    .qp-label{font-size:9px;font-weight:800;letter-spacing:.12em;color:#6b7f8a;text-transform:uppercase;margin-bottom:6px;}
+    .qp-label{font-size:9px;font-weight:800;letter-spacing:.12em;color:#1a2e3b;text-transform:uppercase;margin-bottom:6px;}
     .qp-name{font-size:14px;font-weight:700;color:#1a2e3b;}
-    .qp-sub{font-size:11px;color:#6b7f8a;margin-top:2px;word-break:break-word;}
+    .qp-sub{font-size:11px;color:#1a2e3b;margin-top:2px;word-break:break-word;}
     .qp-table-wrap{padding:0 12px;}
     .qp-table{width:100%;border-collapse:collapse;}
-    .qp-th{padding:8px 6px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#6b7f8a;text-transform:uppercase;border-bottom:2px solid #e8ecef;white-space:nowrap;}
+    .qp-th{padding:8px 6px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#1a2e3b;text-transform:uppercase;border-bottom:2px solid #e8ecef;white-space:nowrap;}
     .qp-td{padding:10px 6px;border-bottom:1px solid #e8ecef;font-size:12px;vertical-align:top;}
     .qp-td-desc{color:#1a2e3b;font-weight:600;word-break:break-word;}
-    .qp-td-num{text-align:right;color:#4a5c66;white-space:nowrap;}
+    .qp-td-num{text-align:right;color:#1a2e3b;white-space:nowrap;}
     .qp-td-total{text-align:right;font-weight:700;color:#1a2e3b;white-space:nowrap;}
     .qp-totals{display:flex;justify-content:flex-end;padding:12px 16px 16px;}
     .qp-total-box{min-width:180px;}
@@ -4336,12 +4336,12 @@ function buildQuotePaperHTML(q){
     ${notesList.length ? `
     <div class="qp-notes">
       <div class="qp-label">Description</div>
-      ${notesList.map(n=>`<div style="font-size:12px;color:#4a5c66;line-height:1.6;display:flex;gap:6px;margin-top:2px;"><span>•</span><span>${escapeHtml(n)}</span></div>`).join('')}
+      ${notesList.map(n=>`<div style="font-size:12px;color:#1a2e3b;line-height:1.6;display:flex;gap:6px;margin-top:2px;"><span>•</span><span>${escapeHtml(n)}</span></div>`).join('')}
     </div>` : ''}
 
     <div class="qp-footer">
-      <div style="font-size:11px;color:#6b7f8a;">Thank you for your business!</div>
-      <div style="font-size:11px;color:#6b7f8a;">M&amp;A Mowing · Quote #${q.quoteNumber}</div>
+      <div style="font-size:11px;color:#1a2e3b;">Thank you for your business!</div>
+      <div style="font-size:11px;color:#1a2e3b;">M&amp;A Mowing · Quote #${q.quoteNumber}</div>
     </div>
   </div>`;
 }
