@@ -1587,15 +1587,29 @@ async function init(){
   });
 
   bankTxDocRef.onSnapshot(function(snap){
-    console.log('bankTx snapshot fired — exists:', snap.exists, 'data:', snap.exists ? snap.data() : null);
     if(snap.exists){
-      bankTransactions = snap.data().items || [];
+      const incoming = snap.data().items || [];
+      // Only accept if it has data, or if we have no backup
+      let backup = [];
+      try { backup = JSON.parse(localStorage.getItem('ma_bank_tx') || '[]'); } catch(e){}
+      if(incoming.length === 0 && backup.length > 0){
+        console.warn('bankTx: Firebase returned 0 items but backup has', backup.length, '— using backup');
+        bankTransactions = backup;
+      } else {
+        bankTransactions = incoming;
+        if(bankTransactions.length > 0){
+          try { localStorage.setItem('ma_bank_tx', JSON.stringify(bankTransactions)); } catch(e){}
+        }
+      }
     } else {
       try { bankTransactions = JSON.parse(localStorage.getItem('ma_bank_tx') || '[]'); } catch(e){ bankTransactions = []; }
     }
-    console.log('bankTransactions loaded:', bankTransactions.length);
     if(activeTab === 'receipts') renderBankTx();
-  }, function(err){ console.error('bankTx snapshot error:', err); });
+  }, function(err){
+    console.error('bankTx snapshot error:', err);
+    try { bankTransactions = JSON.parse(localStorage.getItem('ma_bank_tx') || '[]'); } catch(e){ bankTransactions = []; }
+    if(activeTab === 'receipts') renderBankTx();
+  });
 
 
   jobPhotosCollRef.onSnapshot(function(snap){
