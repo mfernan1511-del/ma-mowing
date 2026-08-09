@@ -418,7 +418,7 @@
   .keypad button.wide{grid-column:span 1;font-size:13px;color:var(--gold-300);}
   .modal-close{
     margin-top:14px;background:none;border:none;color:rgba(251,248,238,.45);
-    font-size:13px;cursor:pointer;text-decoration:underline;
+    font-size:16px;cursor:pointer;text-decoration:underline;padding:10px 18px;
   }
 
   .cal-modal{max-width:340px;text-align:left;}
@@ -1464,8 +1464,8 @@ let pinMode = 'unlock'; // 'unlock' | 'setup' | 'confirm'
 let pendingNewPin = '';
 let pinCancelable = true;
 let calClientId = null;
-let calViewYear = 2026;
-let calViewMonth = 5; // June (0-indexed)
+let calViewYear = new Date().getFullYear();
+let calViewMonth = new Date().getMonth();
 let activeTab = 'schedule';
 const crewMode = new URLSearchParams(location.search).get('crew') === '1';
 let activeReceiptId = null;
@@ -1677,28 +1677,27 @@ function seedHistoricalJobs(d){
     {n:'Don',p:50,d:'2026-07-19'},{n:'Jacob',p:60,d:'2026-07-19'},{n:'Lou Vino',p:50,d:'2026-07-19'},
     {n:'David',p:100,d:'2026-07-19'},{n:'Gene (3 kids)',p:70,d:'2026-07-19'},{n:'Todd',p:60,d:'2026-07-19'},
   ];
-  hist.forEach((j,i) => completedJobs.push({
-    id:'hist'+i+'_'+j.d.replace(/-/g,''),
-    name:j.n, price:j.p, completedDate:j.d,
-    scheduledDate:j.d, paid:true, clientId:null
-  }));
+  hist.forEach((j,i) => {
+    const id = 'hist'+i+'_'+j.d.replace(/-/g,'');
+    if(!completedJobs.some(x => x.id === id))
+      completedJobs.push({ id, name:j.n, price:j.p, completedDate:j.d, scheduledDate:j.d, paid:true, clientId:null });
+  });
   mainDocRef.set({ historicalJobsSeeded:true, completedJobs }, { merge:true });
 }
 
 function seedHistoricalJobsV2(d){
   if(d.historicalJobsV2) return;
-  // Remove Jul 21 entries
   completedJobs = completedJobs.filter(j => j.completedDate !== '2026-07-21');
-  // Add today Jul 25
   const today = [
     {n:'Lou Vino',p:50},{n:'Linda',p:40},{n:'David',p:100},{n:'Jackie',p:0},
     {n:'Steve Quinn (Mother in Law)',p:55},{n:'Todd',p:60},{n:'Gene (Old Man)',p:40},
     {n:'Don',p:50},{n:'Keith',p:50},{n:'Candy',p:20},{n:'Cindy',p:50},{n:'Steve (edging)',p:20}
   ];
-  today.forEach((j,i) => completedJobs.push({
-    id:'jul25_'+i, name:j.n, price:j.p,
-    completedDate:'2026-07-25', scheduledDate:'2026-07-25', paid:false, clientId:null
-  }));
+  today.forEach((j,i) => {
+    const id = 'jul25_'+i;
+    if(!completedJobs.some(x => x.id === id))
+      completedJobs.push({ id, name:j.n, price:j.p, completedDate:'2026-07-25', scheduledDate:'2026-07-25', paid:false, clientId:null });
+  });
   mainDocRef.set({ historicalJobsV2:true, completedJobs }, { merge:true });
 }
 
