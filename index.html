@@ -687,7 +687,7 @@ if(new URLSearchParams(location.search).get('quote')){
     <div class="brand">
       <img src="logo.png" alt="M&amp;A Mowing" class="logo-img">
       <div>
-        <div class="sub">Weekend Crew Tracker</div>
+        <div class="sub"></div>
       </div>
     </div>
     <div class="header-actions">
@@ -1528,6 +1528,7 @@ async function init(){
     if(loadScreen) loadScreen.style.display = 'none';
     seedHistoricalJobs(d);
     seedHistoricalJobsV2(d);
+    deduplicateCompletedJobs(d);
     checkRecurringRevenue();
     render();
     if(activeTab === 'revenue')     renderRevenue();
@@ -1699,6 +1700,23 @@ function seedHistoricalJobsV2(d){
       completedJobs.push({ id, name:j.n, price:j.p, completedDate:'2026-07-25', scheduledDate:'2026-07-25', paid:false, clientId:null });
   });
   mainDocRef.set({ historicalJobsV2:true, completedJobs }, { merge:true });
+}
+
+function deduplicateCompletedJobs(d){
+  if(d.jobsDeduped) return;
+  const seen = new Set();
+  const before = completedJobs.length;
+  completedJobs = completedJobs.filter(j => {
+    if(seen.has(j.id)) return false;
+    seen.add(j.id);
+    return true;
+  });
+  if(completedJobs.length !== before){
+    console.log('Removed', before - completedJobs.length, 'duplicate jobs');
+    mainDocRef.set({ jobsDeduped: true, completedJobs }, { merge: true });
+  } else {
+    mainDocRef.set({ jobsDeduped: true }, { merge: true });
+  }
 }
 
 function checkRecurringRevenue(){
