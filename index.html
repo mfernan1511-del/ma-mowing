@@ -919,19 +919,35 @@ if(new URLSearchParams(location.search).get('quote')){
 
   <div id="maintenanceView" style="display:none;">
     <div class="section">
-      <div class="section-head">
-        <h2>🔧 Truck &amp; Equipment Maintenance</h2>
-        <span class="count" id="maintenanceCount">0 total</span>
+      <div class="section-head" onclick="toggleEquipmentCollapse()" style="cursor:pointer;user-select:none;">
+        <h2>🛠 My Equipment <span id="equipChevron" style="font-size:14px;opacity:.6;">▼</span></h2>
+        <span class="count" id="equipCount">0 items</span>
       </div>
-      <p style="font-size:13px;color:rgba(251,248,238,.55);margin:-4px 0 14px;">
-        Set a reminder by mileage or by date — we'll flag it when it's due.
-      </p>
-
-      <div class="fab-row" id="maintenanceControls" style="display:none;">
-        <button class="pill-btn primary" onclick="openMaintenanceCreate()">＋ New Task</button>
+      <div id="equipmentBody">
+        <div id="equipGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:12px;margin-bottom:14px;"></div>
+        <button class="pill-btn primary" onclick="openAddEquipment()" style="display:none;width:100%;" id="addEquipBtn">＋ Add Equipment</button>
       </div>
+    </div>
 
-      <div id="maintenanceList"></div>
+    <!-- Add Equipment overlay -->
+    <div class="overlay" id="equipOverlay">
+      <div class="modal">
+        <h3>＋ Add Equipment</h3>
+        <div style="text-align:center;margin-bottom:12px;">
+          <div id="equipPhotoPreview" style="width:90px;height:90px;border-radius:16px;background:rgba(255,255,255,.08);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;">📷</div>
+          <input type="file" id="equipPhotoInput" accept="image/*" style="display:none" onchange="previewEquipPhoto(event)">
+          <button onclick="document.getElementById('equipPhotoInput').click()" class="pill-btn" style="font-size:13px;padding:6px 14px;">Choose Photo</button>
+        </div>
+        <input type="text" id="equipNameInput" class="receipt-input" placeholder="Equipment name (e.g. Lawn Mower)" style="margin-bottom:10px;">
+        <button class="pill-btn primary" style="width:100%;margin-top:6px;" onclick="saveEquipment()">Save</button>
+        <button class="modal-close" onclick="document.getElementById('equipOverlay').classList.remove('show')">Cancel</button>
+      </div>
+    </div>
+
+    <!-- hidden maintenance count span kept for JS compat -->
+    <span id="maintenanceCount" style="display:none;">0 total</span>
+    <div id="maintenanceControls" style="display:none;"></div>
+    <div id="maintenanceList" style="display:none;"></div>
     </div>
 
     <div class="section" style="margin-top:8px;">
@@ -1431,7 +1447,8 @@ let mileageLogs = []; // [{ id, date, miles }]
 let invoices = []; // [{ id, clientId, description, amount, date, invoiceNumber }]
 let recurringClients = []; // [{ id, name, amount }]
 let messageTemplates = []; // [{ id, label, text }]
-let maintenanceTasks = []; // [{ id, name, type, intervalMiles/intervalDays, lastDoneMileage/lastDoneDate }]
+let maintenanceTasks = [];
+let equipmentItems = []; // [{ id, name, photo }]
 let personalTodos = []; // [{ id, text, done }]
 let personalEvents = []; // [{ id, date, title }]
 let checklistItems = []; // [{ id, text }] — the saved items
@@ -1506,6 +1523,7 @@ async function init(){
     recurringClients = d.recurringClients || [];
     messageTemplates = d.messageTemplates || [];
     maintenanceTasks = d.maintenanceTasks || [];
+    equipmentItems = d.equipmentItems || [];
     personalTodos    = d.personalTodos    || [];
     personalEvents   = d.personalEvents   || [];
     checklistItems   = d.checklistItems   || [
@@ -1520,7 +1538,7 @@ async function init(){
       try { localStorage.setItem('ma_main_backup', JSON.stringify({
         clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes,
         completedJobs, mileageLogs, invoices, recurringClients, messageTemplates,
-        maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
+        maintenanceTasks, equipmentItems, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
       })); } catch(e){}
     }
     firstSnapshotLoaded = true;
@@ -1630,7 +1648,7 @@ function syncMainDoc(){
     return;
   }
   mainDocRef.set({
-    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
+    clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes, completedJobs, mileageLogs, invoices, recurringClients, messageTemplates, maintenanceTasks, equipmentItems, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
   }, { merge: true })
   .then(() => {
     console.log('syncMainDoc OK — clients:', clients.length, 'quotes:', quotes.length);
@@ -1638,7 +1656,7 @@ function syncMainDoc(){
     try { localStorage.setItem('ma_main_backup', JSON.stringify({
       clients, weekendIds, weekendDates, weekendPaid, weekendDone, flagNotes,
       completedJobs, mileageLogs, invoices, recurringClients, messageTemplates,
-      maintenanceTasks, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
+      maintenanceTasks, equipmentItems, personalTodos, personalEvents, checklistItems, quotes, pin: currentPin
     })); } catch(e){}
   })
   .catch(e => { console.error('syncMainDoc FAILED:', e); showToast('⚠️ Save failed: ' + e.message); });
@@ -2892,9 +2910,80 @@ function getMaintenanceStatus(task){
   }
 }
 
+let _equipCollapsed = false;
+function toggleEquipmentCollapse(){
+  _equipCollapsed = !_equipCollapsed;
+  document.getElementById('equipmentBody').style.display = _equipCollapsed ? 'none' : 'block';
+  document.getElementById('equipChevron').textContent = _equipCollapsed ? '▶' : '▼';
+}
+
+function openAddEquipment(){
+  document.getElementById('equipNameInput').value = '';
+  document.getElementById('equipPhotoPreview').innerHTML = '📷';
+  document.getElementById('equipPhotoInput').value = '';
+  document.getElementById('equipOverlay').classList.add('show');
+}
+
+function previewEquipPhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = document.createElement('img');
+    img.src = ev.target.result;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    const prev = document.getElementById('equipPhotoPreview');
+    prev.innerHTML = '';
+    prev.appendChild(img);
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveEquipment(){
+  const name = document.getElementById('equipNameInput').value.trim();
+  if(!name){ showToast('Enter a name'); return; }
+  const prev = document.getElementById('equipPhotoPreview');
+  const img = prev.querySelector('img');
+  const photo = img ? img.src : '';
+  if(!equipmentItems) equipmentItems = [];
+  equipmentItems.push({ id: 'eq' + Date.now(), name, photo });
+  syncMainDoc();
+  document.getElementById('equipOverlay').classList.remove('show');
+  renderEquipment();
+  showToast(name + ' added ✅');
+}
+
+function deleteEquipment(id){
+  if(!confirm('Remove this equipment?')) return;
+  equipmentItems = equipmentItems.filter(e => e.id !== id);
+  syncMainDoc();
+  renderEquipment();
+}
+
+function renderEquipment(){
+  const grid = document.getElementById('equipGrid');
+  const btn = document.getElementById('addEquipBtn');
+  const count = document.getElementById('equipCount');
+  if(!grid) return;
+  if(canEdit() && btn) btn.style.display = 'block';
+  count.textContent = (equipmentItems||[]).length + ' items';
+  if(!equipmentItems || equipmentItems.length === 0){
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;opacity:.5;font-size:13px;padding:16px 0;">No equipment yet — tap Add Equipment</div>`;
+    return;
+  }
+  grid.innerHTML = equipmentItems.map(eq => `
+    <div style="position:relative;text-align:center;cursor:pointer;" onclick="if(canEdit())deleteEquipment('${eq.id}')">
+      <div style="width:80px;height:80px;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.08);margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:32px;">
+        ${eq.photo ? `<img src="${eq.photo}" style="width:100%;height:100%;object-fit:cover;">` : '🛠'}
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--cream);line-height:1.3;">${escapeHtml(eq.name)}</div>
+    </div>
+  `).join('');
+}
+
 function renderMaintenance(){
-  document.getElementById('maintenanceControls').style.display = canEdit() ? 'flex' : 'none';
-  document.getElementById('maintenanceCount').textContent = maintenanceTasks.length + ' total';
+  document.getElementById('maintenanceCount') && (document.getElementById('maintenanceCount').textContent = maintenanceTasks.length + ' total');
+  renderEquipment();
   const list = document.getElementById('maintenanceList');
   if(maintenanceTasks.length === 0){
     list.innerHTML = `<div class="empty-state">No maintenance tasks yet.${canEdit() ? '<br>Tap "+ New Task" to add one.' : ''}</div>`;
@@ -4824,7 +4913,7 @@ function buildBackupData(){
     exportDate: new Date().toISOString(),
     clients, weekendIds, weekendDates, weekendPaid, weekendDone,
     flagNotes, completedJobs, mileageLogs, invoices,
-    recurringClients, messageTemplates, maintenanceTasks,
+    recurringClients, messageTemplates, maintenanceTasks, equipmentItems,
     personalTodos, quotes, bankTransactions, pin: currentPin
   };
 }
