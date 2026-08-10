@@ -1624,6 +1624,24 @@ async function init(){
     }
   });
 
+  // Hard timeout: if data hasn't loaded in 8s, force a direct get() then fallback to backup
+  setTimeout(async function(){
+    if(firstSnapshotLoaded) return;
+    console.warn('⏱ Load timeout — forcing get()');
+    try {
+      const doc = await mainDocRef.get();
+      if(doc.exists){ applyMainDocData(doc.data()); return; }
+    } catch(e){ console.error('Timeout get() failed:', e); }
+    let backup = null;
+    try { backup = JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e){}
+    if(backup){ applyMainDocData(backup); showToast('Loaded from backup'); }
+    else {
+      const loadScreen = document.getElementById('appLoadingScreen');
+      if(loadScreen) loadScreen.style.display = 'none';
+      showGate();
+    }
+  }, 8000);
+
   receiptsCollRef.onSnapshot(function(snap){
     receipts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a,b) => (b.addedDate || '').localeCompare(a.addedDate || ''));
