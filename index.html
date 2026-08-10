@@ -1548,11 +1548,9 @@ async function init(){
   if(quickBackup && quickBackup.clients && quickBackup.clients.length > 0){
     applyMainDocDataQuick(quickBackup);
   } else {
-    // No backup yet — hide loading screen after 2s max
     setTimeout(function(){
       const ls = document.getElementById('appLoadingScreen');
       if(ls) ls.style.display = 'none';
-      if(!unlocked) showGate();
     }, 2000);
   }
 
