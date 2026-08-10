@@ -374,12 +374,12 @@
   #pinOverlay{
     position:fixed;inset:0;z-index:9999;
     background:linear-gradient(160deg,#0d2218 0%,#0f2d1e 40%,#0a1a12 100%);
-    display:flex;align-items:center;justify-content:center;
+    display:none;align-items:center;justify-content:center;
     flex-direction:column;padding:0;border-radius:0;
   }
-  #pinOverlay.show{ display:flex !important; }
+  #pinOverlay.show{ display:flex; }
   .pin-modal{
-    width:100%;max-width:360px;padding:0 28px 40px;
+    width:100%;max-width:300px;padding:0 20px 32px;
     background:transparent;border:none;box-shadow:none;border-radius:0;
     display:flex;flex-direction:column;align-items:center;
   }
@@ -1028,7 +1028,7 @@ if(new URLSearchParams(location.search).get('quote')){
   <div class="pin-modal">
     <div class="pin-lock-top">
       <img src="logo.png" alt="M&amp;A Mowing" class="pin-modal-logo">
-      <p id="pinWelcome" class="pin-welcome">M&amp;A Mowing</p>
+      <p id="pinWelcome" class="pin-welcome">Welcome Marco &amp; Adolfo 🇨🇺</p>
       <p class="pin-sub-label" id="pinSub">Enter your PIN to continue</p>
     </div>
     <button class="faceid-btn" id="faceIdBtn" onclick="unlockWithFaceID()" style="display:none;">🆔 Unlock with Face ID</button>
