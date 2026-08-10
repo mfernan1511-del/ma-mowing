@@ -1547,19 +1547,6 @@ async function init(){
   unlocked = sessionStorage.getItem(UNLOCK_KEY) === 'true';
   updateLockUI();
 
-  // Load from local backup IMMEDIATELY so the app never gets stuck on loading screen
-  const quickBackup = (function(){
-    try { return JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e){ return null; }
-  })();
-  if(quickBackup && quickBackup.clients && quickBackup.clients.length > 0){
-    applyMainDocDataQuick(quickBackup);
-  } else {
-    setTimeout(function(){
-      const ls = document.getElementById('appLoadingScreen');
-      if(ls) ls.style.display = 'none';
-    }, 2000);
-  }
-
   if(!unlocked){
     showGate();
   }
