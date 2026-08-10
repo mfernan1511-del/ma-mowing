@@ -1532,9 +1532,15 @@ function applyMainDocDataQuick(d){
   checklistItems   = d.checklistItems   || [];
   quotes           = d.quotes           || [];
   currentPin       = d.pin              || DEFAULT_PIN;
+  firstSnapshotLoaded = true;
   const ls = document.getElementById('appLoadingScreen');
   if(ls) ls.style.display = 'none';
-  render();
+  if(unlocked){
+    document.querySelector('.wrap').style.display = 'block';
+    render();
+  } else {
+    showGate();
+  }
 }
 
 async function init(){
