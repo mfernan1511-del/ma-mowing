@@ -4983,6 +4983,37 @@ function hideGate(){
   if(ls) ls.style.display = 'none';
   document.querySelector('.wrap').style.display = 'block';
   closePinModal();
+  // If data didn't load yet, force a direct fetch now
+  if(clients.length === 0){
+    showToast('Loading your data…');
+    db.collection('appData').doc('main').get().then(function(doc){
+      if(doc.exists){
+        const d = doc.data();
+        clients = d.clients || [];
+        weekendIds = d.weekendIds || [];
+        weekendDates = d.weekendDates || {};
+        weekendPaid = d.weekendPaid || {};
+        weekendDone = d.weekendDone || {};
+        flagNotes = d.flagNotes || {};
+        completedJobs = d.completedJobs || [];
+        mileageLogs = d.mileageLogs || [];
+        invoices = d.invoices || [];
+        recurringClients = d.recurringClients || [];
+        messageTemplates = d.messageTemplates || [];
+        maintenanceTasks = d.maintenanceTasks || [];
+        equipmentItems = d.equipmentItems || [];
+        personalTodos = d.personalTodos || [];
+        personalEvents = d.personalEvents || [];
+        checklistItems = d.checklistItems || [];
+        quotes = d.quotes || [];
+        currentPin = d.pin || DEFAULT_PIN;
+        firstSnapshotLoaded = true;
+        try { localStorage.setItem('ma_main_backup', JSON.stringify(d)); } catch(e){}
+        render();
+        showToast('Data loaded ✅');
+      }
+    }).catch(function(e){ showToast('⚠️ Check your connection'); });
+  }
 }
 
 // ── BACKUP & RESTORE ──────────────────────────────────────────
