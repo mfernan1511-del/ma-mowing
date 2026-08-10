@@ -1582,6 +1582,23 @@ async function init(){
     console.log('✅ Data applied — clients:', clients.length, 'quotes:', quotes.length);
   }
 
+  // Load immediately with get() so loading screen never gets stuck
+  mainDocRef.get().then(async function(doc){
+    if(firstSnapshotLoaded) return; // snapshot already fired first
+    console.log('⚡ get() initial load — exists:', doc.exists);
+    if(doc.exists){ applyMainDocData(doc.data()); }
+    else {
+      let backup = null;
+      try { backup = JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e){}
+      if(backup && backup.clients && backup.clients.length > 0){ applyMainDocData(backup); }
+    }
+  }).catch(function(e){
+    console.error('Initial get() failed:', e);
+    let backup = null;
+    try { backup = JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e2){}
+    if(backup && !firstSnapshotLoaded){ applyMainDocData(backup); showToast('Loaded from backup'); }
+  });
+
   mainDocRef.onSnapshot(async function(doc){
     console.log('📦 SNAPSHOT fired — exists:', doc.exists);
     if(!doc.exists){
