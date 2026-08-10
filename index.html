@@ -370,52 +370,71 @@
   }
   .modal h3{margin:0 0 4px;font-size:17px;}
   .modal p{margin:0 0 16px;font-size:13px;color:rgba(251,248,238,.6);}
+  /* ── FULL-SCREEN LOCK SCREEN ── */
+  #pinOverlay{
+    position:fixed;inset:0;z-index:9999;
+    background:linear-gradient(160deg,#0d2218 0%,#0f2d1e 40%,#0a1a12 100%);
+    display:flex;align-items:center;justify-content:center;
+    flex-direction:column;padding:0;border-radius:0;
+  }
+  #pinOverlay.show{ display:flex !important; }
   .pin-modal{
-    padding-top:32px;
-    box-shadow:var(--shadow-lg), 0 0 60px -10px rgba(126,152,171,.18);
-    border-color:rgba(126,152,171,.3);
+    width:100%;max-width:360px;padding:0 28px 40px;
+    background:transparent;border:none;box-shadow:none;border-radius:0;
+    display:flex;flex-direction:column;align-items:center;
+  }
+  .pin-lock-top{
+    display:flex;flex-direction:column;align-items:center;
+    margin-bottom:32px;margin-top:20px;
   }
   .pin-modal-logo{
-    width:64px;height:64px;object-fit:contain;margin:0 auto 16px;display:block;
-    filter:drop-shadow(0 6px 16px rgba(0,0,0,.45));
+    width:90px;height:90px;object-fit:contain;border-radius:22px;
+    margin-bottom:16px;display:block;
+    box-shadow:0 8px 32px rgba(0,0,0,.5);
     animation:popIn .4s cubic-bezier(.2,.9,.25,1.2) both;
   }
   .pin-welcome{
-    font-size:14px;font-weight:700;color:var(--gold-300);
-    margin:0 0 14px;
+    font-size:22px;font-weight:800;color:var(--cream);
+    margin:0 0 4px;text-align:center;letter-spacing:-.3px;
+  }
+  .pin-sub-label{
+    font-size:13px;color:rgba(251,248,238,.45);text-align:center;margin-bottom:0;
   }
   .faceid-btn{
-    width:100%;border:1px solid rgba(126,152,171,.4);
-    background:rgba(126,152,171,.12);color:var(--gold-300);
-    border-radius:14px;padding:12px;font-size:14px;font-weight:700;
-    cursor:pointer;margin-bottom:16px;
+    width:100%;border:1.5px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.07);color:var(--cream);
+    border-radius:16px;padding:14px;font-size:15px;font-weight:700;
+    cursor:pointer;margin-bottom:20px;letter-spacing:.2px;
     transition:transform .15s ease, background .2s ease;
+    backdrop-filter:blur(8px);
   }
-  .faceid-btn:active{transform:scale(.96);background:rgba(126,152,171,.22);}
-  .pin-dots{display:flex;gap:12px;justify-content:center;margin:18px 0;}
+  .faceid-btn:active{transform:scale(.97);background:rgba(255,255,255,.13);}
+  .pin-or{font-size:12px;color:rgba(251,248,238,.3);margin-bottom:16px;letter-spacing:.5px;text-transform:uppercase;}
+  .pin-dots{display:flex;gap:14px;justify-content:center;margin:0 0 24px;}
   .pin-dot{
-    width:16px;height:16px;border-radius:50%;
-    border:2px solid rgba(126,152,171,.4);
+    width:14px;height:14px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.25);
     transition:background .15s ease, transform .15s ease;
   }
-  .pin-dot.filled{background:var(--gold-400);border-color:var(--gold-400);transform:scale(1.1);}
+  .pin-dot.filled{background:#fff;border-color:#fff;transform:scale(1.15);}
   .pin-dot.shake{animation:shake .4s ease;}
-  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;}
   .keypad button{
-    aspect-ratio:1;border-radius:16px;
-    border:1px solid rgba(255,255,255,.08);
-    background:linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+    aspect-ratio:1;border-radius:20px;
+    border:1.5px solid rgba(255,255,255,.09);
+    background:rgba(255,255,255,.06);
     color:var(--cream);
-    font-size:20px;font-weight:700;cursor:pointer;
-    box-shadow:0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.05);
-    transition:background .15s ease, transform .1s ease, border-color .15s ease;
+    font-size:22px;font-weight:700;cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.07);
+    transition:background .12s ease, transform .1s ease;
+    backdrop-filter:blur(4px);
   }
   .keypad button:active{
-    transform:scale(.9);
-    background:linear-gradient(160deg, rgba(126,152,171,.35), rgba(126,152,171,.15));
-    border-color:rgba(126,152,171,.5);
+    transform:scale(.91);
+    background:rgba(255,255,255,.15);
+    border-color:rgba(255,255,255,.2);
   }
-  .keypad button.wide{grid-column:span 1;font-size:13px;color:var(--gold-300);}
+  .keypad button.wide{font-size:14px;color:rgba(251,248,238,.6);font-weight:600;}
   .modal-close{
     margin-top:14px;background:none;border:none;color:rgba(251,248,238,.45);
     font-size:16px;cursor:pointer;text-decoration:underline;padding:10px 18px;
@@ -1005,18 +1024,20 @@ if(new URLSearchParams(location.search).get('quote')){
   <footer>Built for the M&amp;A Mowing crew 🌿💰</footer>
 </div>
 
-<div class="overlay" id="pinOverlay">
-  <div class="modal pin-modal">
-    <img src="logo.png" alt="M&amp;A Mowing" class="pin-modal-logo">
-    <p id="pinWelcome" class="pin-welcome">Welcome Marco &amp; Adolfo 🇨🇺</p>
-    <h3 id="pinTitle">Enter PIN</h3>
-    <p id="pinSub">Boss access only</p>
-    <button class="faceid-btn" id="faceIdBtn" onclick="unlockWithFaceID()" style="display:none;">🆔 Use Face ID</button>
+<div id="pinOverlay">
+  <div class="pin-modal">
+    <div class="pin-lock-top">
+      <img src="logo.png" alt="M&amp;A Mowing" class="pin-modal-logo">
+      <p id="pinWelcome" class="pin-welcome">M&amp;A Mowing</p>
+      <p class="pin-sub-label" id="pinSub">Enter your PIN to continue</p>
+    </div>
+    <button class="faceid-btn" id="faceIdBtn" onclick="unlockWithFaceID()" style="display:none;">🆔 Unlock with Face ID</button>
+    <div class="pin-or" id="pinOrLabel" style="display:none;">or enter your code</div>
     <div class="pin-dots" id="pinDots">
       <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
     </div>
     <div class="keypad" id="keypad"></div>
-    <button class="modal-close" id="pinCancelBtn" onclick="closePinModal()">Cancel</button>
+    <button class="modal-close" id="pinCancelBtn" onclick="closePinModal()" style="margin-top:20px;color:rgba(251,248,238,.35);">Cancel</button>
   </div>
 </div>
 
@@ -5039,7 +5060,9 @@ function openPinModal(mode, cancelable){
   document.getElementById('pinTitle').textContent = titles[mode] || 'Enter PIN';
   document.getElementById('pinSub').textContent = mode === 'unlock' ? 'M&A Mowing crew access only' : (mode === 'verifyOld' ? 'Verify it’s you before changing it' : 'Choose 4 digits');
   document.getElementById('pinCancelBtn').style.display = pinCancelable ? 'inline-block' : 'none';
-  document.getElementById('faceIdBtn').style.display = (mode === 'unlock' && localStorage.getItem(FACEID_CRED_KEY)) ? 'block' : 'none';
+  const showFace = (mode === 'unlock' && localStorage.getItem(FACEID_CRED_KEY));
+  document.getElementById('faceIdBtn').style.display = showFace ? 'block' : 'none';
+  document.getElementById('pinOrLabel').style.display = showFace ? 'block' : 'none';
   updatePinDots();
   document.getElementById('pinOverlay').classList.add('show');
 }
