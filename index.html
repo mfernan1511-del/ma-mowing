@@ -1513,9 +1513,48 @@ const crewMode = new URLSearchParams(location.search).get('crew') === '1';
 let activeReceiptId = null;
 let firstSnapshotLoaded = false;
 
+function applyMainDocDataQuick(d){
+  clients          = d.clients          || [];
+  weekendIds       = d.weekendIds       || [];
+  weekendDates     = d.weekendDates     || {};
+  weekendPaid      = d.weekendPaid      || {};
+  weekendDone      = d.weekendDone      || {};
+  flagNotes        = d.flagNotes        || {};
+  completedJobs    = d.completedJobs    || [];
+  mileageLogs      = d.mileageLogs      || [];
+  invoices         = d.invoices         || [];
+  recurringClients = d.recurringClients || [];
+  messageTemplates = d.messageTemplates || [];
+  maintenanceTasks = d.maintenanceTasks || [];
+  equipmentItems   = d.equipmentItems   || [];
+  personalTodos    = d.personalTodos    || [];
+  personalEvents   = d.personalEvents   || [];
+  checklistItems   = d.checklistItems   || [];
+  quotes           = d.quotes           || [];
+  currentPin       = d.pin              || DEFAULT_PIN;
+  const ls = document.getElementById('appLoadingScreen');
+  if(ls) ls.style.display = 'none';
+  render();
+}
+
 async function init(){
   unlocked = sessionStorage.getItem(UNLOCK_KEY) === 'true';
   updateLockUI();
+
+  // Load from local backup IMMEDIATELY so the app never gets stuck on loading screen
+  const quickBackup = (function(){
+    try { return JSON.parse(localStorage.getItem('ma_main_backup') || 'null'); } catch(e){ return null; }
+  })();
+  if(quickBackup && quickBackup.clients && quickBackup.clients.length > 0){
+    applyMainDocDataQuick(quickBackup);
+  } else {
+    // No backup yet — hide loading screen after 2s max
+    setTimeout(function(){
+      const ls = document.getElementById('appLoadingScreen');
+      if(ls) ls.style.display = 'none';
+      if(!unlocked) showGate();
+    }, 2000);
+  }
 
   if(!unlocked){
     showGate();
