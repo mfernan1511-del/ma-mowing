@@ -376,7 +376,7 @@
   .modal p{margin:0 0 16px;font-size:13px;color:rgba(251,248,238,.6);}
   /* ── FULL-SCREEN LOCK SCREEN ── */
   #pinOverlay{
-    position:fixed;inset:0;z-index:9999;
+    position:fixed;inset:0;z-index:10000;
     background:linear-gradient(160deg,#0d2218 0%,#0f2d1e 40%,#0a1a12 100%);
     display:none;align-items:center;justify-content:center;
     flex-direction:column;padding:0;border-radius:0;
@@ -4979,6 +4979,8 @@ function showGate(){
 }
 
 function hideGate(){
+  const ls = document.getElementById('appLoadingScreen');
+  if(ls) ls.style.display = 'none';
   document.querySelector('.wrap').style.display = 'block';
   closePinModal();
 }
