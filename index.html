@@ -4990,6 +4990,7 @@ function hideGate(){
   if(ls) ls.style.display = 'none';
   document.querySelector('.wrap').style.display = 'block';
   closePinModal();
+  firstSnapshotLoaded = true; // allow saves immediately after unlock
   // If data didn't load yet, force a direct fetch now
   if(clients.length === 0){
     showToast('Loading your data…');
